@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="HIDMaestro.Core">
+      <HintPath>..\..\lib\HIDMaestro\HIDMaestro.Core.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <!-- HIDMaestro 런타임 의존 DLL을 출력 폴더에 복사 -->
+  <ItemGroup>
+    <None Update="..\..\lib\HIDMaestro\HIDMaestro.Core.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>HIDMaestro.Core.dll</Link>
+    </None>
+    <None Update="..\..\lib\HIDMaestro\HIDMaestroTest\Microsoft.Windows.SDK.NET.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Microsoft.Windows.SDK.NET.dll</Link>
+    </None>
+    <None Update="..\..\lib\HIDMaestro\HIDMaestroTest\WinRT.Runtime.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>WinRT.Runtime.dll</Link>
+    </None>
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GlassPad.PadTest/GlassPad.PadTest.csproj" />
+    <Project Path="src/GlassPad/GlassPad.csproj" />
+  </Folder>
+</Solution>

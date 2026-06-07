@@ -1,0 +1,28 @@
+# Build output
+bin/
+obj/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+
+# Claude Code session data (private)
+.claude/
+
+# HIDMaestro bundled tools & archive (only HIDMaestro.Core.dll is needed)
+lib/HIDMaestro/HIDMaestroProfileExtractor/
+lib/HIDMaestro/HIDMaestroTest/
+lib/HIDMaestro/*.zip
+
+# User layout save (stored in %AppData%, never in repo)
+layout.json
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Publish output
+publish/
