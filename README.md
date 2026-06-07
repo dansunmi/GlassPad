@@ -101,7 +101,7 @@ lib/
 
 ## Credits
 
-- **[HIDMaestro SDK v1.3.15](https://github.com/nickolasburr/hidmaestro)** — virtual controller driver (MIT License)
+- **[HIDMaestro SDK v1.3.15](https://github.com/hifihedgehog/HIDMaestro)** — virtual controller driver (MIT License)
 - Built with C# / .NET 10 / WPF
 
 ---
