@@ -19,7 +19,7 @@ Designed for the **ASUS ROG Flow Z13** and other touch-screen Windows laptops.
 ---
 
 <div align="center">
-<img src="src/GlassPad/img/glasspad_icon_512.png" width="480" alt="GlassPad preview"/>
+<img src="src/GlassPad/img/screenshot 2026-06-09 231130.png" width="720" alt="GlassPad screenshot"/>
 </div>
 
 ---
@@ -98,6 +98,8 @@ lib/
 - **Exclusive fullscreen is not supported.** Use **Windowed** or **Borderless Windowed** mode in your game settings. In exclusive fullscreen, the game takes over the entire display and the overlay cannot render on top of it.
 
 - **Simultaneous button presses may not register correctly.** Due to a WPF touch-routing limitation, two buttons pressed at the exact same instant can sometimes be missed. This is a known issue currently under investigation. **Workaround:** press the second button ~0.1 seconds after the first — inputs staggered slightly this way work reliably.
+
+- **Controller not recognized by the game?** Close GlassPad and relaunch it — this re-initializes the virtual controller and usually resolves the issue.
 
 ---
 
