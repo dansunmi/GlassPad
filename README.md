@@ -27,7 +27,7 @@ Designed for the **ASUS ROG Flow Z13** and other touch-screen Windows laptops.
 ## Features
 
 - **Fully transparent overlay** — touches pass through to the game where no buttons exist
-- **Virtual Xbox One controller** via HIDMaestro (UMDF2 Windows drive)
+- **Virtual Xbox controller** via HIDMaestro (UMDF2 Windows drive)
 - Analog sticks, triggers, bumpers, face buttons, **L3 / R3**, D-pad (4-way / 8-way), guide button
 - **D-pad visual feedback** — cyan arm highlights on press; 8-way mode shows a surrounding ring
 - **Edit mode** — drag and resize any button, adjust opacity, save layout
