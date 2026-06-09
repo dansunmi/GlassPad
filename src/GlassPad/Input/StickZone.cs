@@ -8,8 +8,8 @@ namespace GlassPad.Input;
 
 internal sealed class StickZone
 {
-    internal const double Outer     = 108;
-    internal const double Inner     = 52;
+    internal const double Outer     = 119;
+    internal const double Inner     = 57;
     private  const double MaxTravel = (Outer - Inner) / 2; // 28 px
 
     private readonly TranslateTransform _nubTx = new();

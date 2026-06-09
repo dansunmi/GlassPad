@@ -53,11 +53,15 @@ internal sealed class GamepadLayout
         Stick("LS", 260, h * 0.78);
 
         // ── A / B / X / Y ────────────────────────────────────────
-        double fcx = w - 175, fcy = h * 0.56, fd = 95;
+        double fcx = w - 175, fcy = h * 0.52, fd = 83;
         Circle("Y", "#B3D4AC00", fcx,      fcy - fd, 75);
         Circle("X", "#B31A5FB0", fcx - fd, fcy,      75);
         Circle("B", "#B3C02020", fcx + fd, fcy,      75);
         Circle("A", "#B3108040", fcx,      fcy + fd, 75);
+
+        // ── L3 / R3 — LB/RB 옆 (어깨 버튼 클러스터) ────────────────
+        Circle("L3", "#B3304060", 190,     124, 44);
+        Circle("R3", "#B3304060", w - 190, 124, 44);
 
         // ── Right stick ──────────────────────────────────────────
         Stick("RS", w - 300, h * 0.78);

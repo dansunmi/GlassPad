@@ -61,20 +61,27 @@ public partial class MainWindow : Window
                     ? DpadZone.DpadMode.Eight : DpadZone.DpadMode.Four;
         }
 
-        // 버튼 터치 → XInput
+        // 버튼 터치 → XInput (DpadZone과 동일한 캡처 패턴 — 동시 입력 지원)
         foreach (var (el, tag) in _layout.Buttons)
         {
             el.TouchDown += (_, te) =>
             {
+                te.TouchDevice.Capture(el);
                 el.RenderTransform = new ScaleTransform(1.08, 1.08);
-                OnButtonDown(el, tag, te);
+                OnButtonDown(tag);
                 te.Handled = true;
             };
             el.TouchUp += (_, te) =>
             {
+                te.TouchDevice.Capture(null);
                 el.RenderTransform = Transform.Identity;
                 OnButtonUp(tag);
                 te.Handled = true;
+            };
+            el.LostTouchCapture += (_, te) =>
+            {
+                el.RenderTransform = Transform.Identity;
+                OnButtonUp(tag);
             };
         }
 
@@ -246,7 +253,7 @@ public partial class MainWindow : Window
 
     // ── XInput 입력 ──────────────────────────────────────────────────
 
-    private void OnButtonDown(FrameworkElement el, string tag, TouchEventArgs te)
+    private void OnButtonDown(string tag)
     {
         switch (tag)
         {
@@ -261,6 +268,8 @@ public partial class MainWindow : Window
             case "⊟": _pad?.PressButton(HMButton.Back);        break;
             case "⊞": _pad?.PressButton(HMButton.Start);       break;
             case "⊙": _pad?.PressButton(HMButton.Guide);       break;
+            case "L3": _pad?.PressButton(HMButton.LeftStick);  break;
+            case "R3": _pad?.PressButton(HMButton.RightStick); break;
         }
     }
 
@@ -279,6 +288,8 @@ public partial class MainWindow : Window
             case "⊟": _pad?.ReleaseButton(HMButton.Back);        break;
             case "⊞": _pad?.ReleaseButton(HMButton.Start);       break;
             case "⊙": _pad?.ReleaseButton(HMButton.Guide);       break;
+            case "L3": _pad?.ReleaseButton(HMButton.LeftStick);  break;
+            case "R3": _pad?.ReleaseButton(HMButton.RightStick); break;
         }
     }
 

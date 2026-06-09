@@ -55,43 +55,4 @@ internal static class Win32Helper
         [Out] TOUCHINPUT[] pInputs,
         int               cbSize);
 
-    // ── WM_POINTER (보조) ────────────────────────────────────────────
-    internal const int WM_POINTERDOWN   = 0x0246;
-    internal const int WM_POINTERUP     = 0x0247;
-    internal const int WM_POINTERUPDATE = 0x0245;
-
-    internal static uint GetPointerId(IntPtr wParam) =>
-        (uint)((int)wParam & 0xFFFF);
-
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct WIN32_POINT { public int X; public int Y; }
-
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct POINTER_INFO
-    {
-        public uint       pointerType;
-        public uint       pointerId;
-        public uint       frameId;
-        public uint       pointerFlags;
-        public IntPtr     sourceDevice;
-        public IntPtr     hwndTarget;
-        public WIN32_POINT ptPixelLocation;
-        public WIN32_POINT ptHimetricLocation;
-        public WIN32_POINT ptPixelLocationRaw;
-        public WIN32_POINT ptHimetricLocationRaw;
-        public uint       dwTime;
-        public uint       historyCount;
-        public int        InputData;
-        public uint       dwKeyStates;
-        public ulong      PerformanceCount;
-        public int        ButtonChangeType;
-    }
-
-    [DllImport("user32.dll", SetLastError = true)]
-    internal static extern bool GetPointerInfo(uint pointerId, out POINTER_INFO info);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    internal static extern bool GetPointerFrameInfo(
-        uint pointerId, ref uint count,
-        [Out] POINTER_INFO[]? infos);
 }

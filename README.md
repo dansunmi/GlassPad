@@ -28,7 +28,7 @@ Designed for the **ASUS ROG Flow Z13** and other touch-screen Windows laptops.
 
 - **Fully transparent overlay** — touches pass through to the game where no buttons exist
 - **Virtual Xbox One controller** via HIDMaestro (UMDF2 kernel driver)
-- Analog sticks, triggers, bumpers, face buttons, D-pad (4-way / 8-way), guide button
+- Analog sticks, triggers, bumpers, face buttons, **L3 / R3**, D-pad (4-way / 8-way), guide button
 - **D-pad visual feedback** — cyan arm highlights on press; 8-way mode shows a surrounding ring
 - **Edit mode** — drag and resize any button, adjust opacity, save layout
 - Layout persists across sessions (`%AppData%\GlassPad\layout.json`)
@@ -96,6 +96,18 @@ lib/
 ## Known Limitations
 
 - **Exclusive fullscreen is not supported.** Use **Windowed** or **Borderless Windowed** mode in your game settings. In exclusive fullscreen, the game takes over the entire display and the overlay cannot render on top of it.
+
+- **Simultaneous button presses may not register correctly.** Due to a WPF touch-routing limitation, two buttons pressed at the exact same instant can sometimes be missed. This is a known issue currently under investigation. **Workaround:** press the second button ~0.1 seconds after the first — inputs staggered slightly this way work reliably.
+
+---
+
+## Changelog
+
+### v1.0.1
+- Added **L3 / R3** buttons (left/right stick click) next to LB/RB
+
+### v1.0.0
+- Initial release
 
 ---
 
