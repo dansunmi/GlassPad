@@ -9,6 +9,7 @@
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>img\glasspad_icon.ico</ApplicationIcon>
+    <Version>1.0.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,18 +19,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="..\..\lib\HIDMaestro\HIDMaestro.Core.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>HIDMaestro.Core.dll</Link>
-    </None>
-    <None Update="..\..\lib\HIDMaestro\HIDMaestroTest\Microsoft.Windows.SDK.NET.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>Microsoft.Windows.SDK.NET.dll</Link>
-    </None>
-    <None Update="..\..\lib\HIDMaestro\HIDMaestroTest\WinRT.Runtime.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>WinRT.Runtime.dll</Link>
-    </None>
+    <EmbeddedResource Include="..\..\LICENSE" LogicalName="GlassPad.Licenses.GlassPad" />
+    <EmbeddedResource Include="..\..\lib\HIDMaestro\LICENSE" LogicalName="GlassPad.Licenses.HIDMaestro" />
+    <EmbeddedResource Include="..\..\lib\HIDMaestro\THIRD-PARTY-NOTICES.txt" LogicalName="GlassPad.Licenses.ThirdParty" />
+    <None Include="..\..\LICENSE" Link="GlassPad-LICENSE.txt"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <None Include="..\..\lib\HIDMaestro\LICENSE" Link="HIDMaestro-LICENSE.txt"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <None Include="..\..\lib\HIDMaestro\THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
   </ItemGroup>
 
 </Project>

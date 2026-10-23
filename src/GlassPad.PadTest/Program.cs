@@ -4,6 +4,19 @@
 
 using HIDMaestro;
 
+if (args.Contains("--live"))
+{
+    int logIndex = Array.IndexOf(args, "--log");
+    using var log = logIndex >= 0 && logIndex + 1 < args.Length
+        ? new StreamWriter(args[logIndex + 1]) { AutoFlush = true } : null;
+    if (log is not null) { Console.SetOut(log); Console.SetError(log); }
+    try { return LiveChecks.Run(args); }
+    catch (Exception ex) { Console.WriteLine($"FAIL: {ex}"); return 1; }
+}
+
+if (args.Contains("--offline"))
+    return OfflineChecks.Run();
+
 if (!OperatingSystem.IsWindows())
 {
     Console.WriteLine("Windows 전용입니다.");

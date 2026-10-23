@@ -14,20 +14,9 @@
     </Reference>
   </ItemGroup>
 
-  <!-- HIDMaestro 런타임 의존 DLL을 출력 폴더에 복사 -->
   <ItemGroup>
-    <None Update="..\..\lib\HIDMaestro\HIDMaestro.Core.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>HIDMaestro.Core.dll</Link>
-    </None>
-    <None Update="..\..\lib\HIDMaestro\HIDMaestroTest\Microsoft.Windows.SDK.NET.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>Microsoft.Windows.SDK.NET.dll</Link>
-    </None>
-    <None Update="..\..\lib\HIDMaestro\HIDMaestroTest\WinRT.Runtime.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>WinRT.Runtime.dll</Link>
-    </None>
+    <Compile Include="..\GlassPad\Input\GamepadAxes.cs" Link="GamepadAxes.cs" />
+    <Compile Include="..\GlassPad\Input\PadService.cs" Link="PadService.cs" />
   </ItemGroup>
 
 </Project>

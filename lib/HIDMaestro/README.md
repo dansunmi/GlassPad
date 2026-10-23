@@ -8,9 +8,11 @@
 
 <h1 align="center">HIDMaestro</h1>
 
-*"And we talk of Christ, we rejoice in Christ, we preach of Christ, we prophesy of Christ, and we write according to our prophecies, that our children may know to what source they may look for a remission of their sins."* — 2 Nephi 25:26
+*"And we talk of Christ, we rejoice in Christ, we preach of Christ, we prophesy of Christ, and we write according to our prophecies, that our children may know to what source they may look for a remission of their sins."* 2 Nephi 25:26
 
-*Glory, honor, and praise to the Lord Jesus Christ, the source of all truth, forever and ever.*
+*Glory, honor, and praise to the Lord Jesus Christ, the source of all truth and salvation, forever and ever.*
+
+*You are warmly invited to visit [ComeUntoChrist.org](https://www.comeuntochrist.org) and learn more about Him and The Church of Jesus Christ of Latter-day Saints.*
 
 ---
 
@@ -18,69 +20,152 @@
   <a href="https://somsubhra.github.io/github-release-stats/?username=hifihedgehog&repository=HIDMaestro"><img src="https://img.shields.io/github/downloads/hifihedgehog/HIDMaestro/total" alt="Total downloads"></a>
   <a href="https://discord.gg/qawTZHVhNH"><img src="https://img.shields.io/discord/1507059039844962425?label=Discord&logo=discord&logoColor=white&color=5865F2" alt="Discord"></a>
   <a href="https://hidmaestro.org/"><img src="https://img.shields.io/badge/website-hidmaestro.org-blue" alt="Website"></a>
+  <a href="https://hidmaestro.org/docs/"><img src="https://img.shields.io/badge/docs-hidmaestro.org%2Fdocs-blue" alt="Documentation"></a>
   <a href="https://github.com/hifihedgehog"><img src="https://img.shields.io/github/followers/hifihedgehog?style=social&label=Follow" alt="GitHub followers"></a>
   <a href="https://x.com/hifihedgehog"><img src="https://img.shields.io/badge/X-@hifihedgehog-black?logo=x&logoColor=white" alt="Follow on X"></a>
 </p>
 
-A user-mode virtual game controller platform that presents like real hardware across the Windows gaming input stack.
+**Virtual game controllers, keyboards and mice that look like real hardware to Windows. No kernel driver. No network. No reboot.**
 
-HIDMaestro creates profile-driven virtual controllers without a custom kernel driver, EV certificate, or reboot cycle. DirectInput, XInput, SDL3, browser Gamepad, and WGI/GameInput can all see the device identity and behavior the profile defines. The stack builds on the UMDF2 + xinputhid approach that [Nefarius](https://nefarius.at/) used in [DsHidMini](https://github.com/nefarius/DsHidMini).
+HIDMaestro creates virtual controllers that present the exact identity of real hardware across the whole Windows input stack at once. Pick from 337 built-in profiles, 103 of them keyboards and mice, or point it at a device you own and clone it. DirectInput, XInput, SDL3, the browser Gamepad API, and WGI/GameInput all see the VID/PID, product name, HID descriptor, axis and button layout, and bus type the profile defines. A virtual keyboard or mouse reaches Raw Input and the desktop as the device it copies.
+
+It runs entirely in user mode (UMDF2), signed with a locally trusted self-signed certificate. No EV certificate, no `testsigning` boot mode, no kernel driver that can blue-screen the machine.
+
+<p align="center"><b>337</b> device profiles · <b>20+</b> projects shipping it · <b>~35 µs</b> median single-press · <b>0</b> kernel drivers</p>
+
+```csharp
+using var ctx = new HMContext();
+ctx.LoadDefaultProfiles();
+ctx.InstallDriver();
+using var ctrl = ctx.CreateController(ctx.GetProfile("xbox-360-wired")!);
+ctrl.SubmitState(new HMGamepadState { Buttons = HMButton.A });
+```
+
+HIDMaestro 2.0.0 moves device behavior out of code and into the profiles, and its driver takes precedence over every older one. Programs built on HIDMaestro 1.x must move to 2.0.0. [Moving from 1.x](docs/MIGRATION.md) lists every change a 1.x program meets.
 
 ---
 
-## What it replaces
+## Quick start
 
-- **vJoy**: needs a kernel driver and is no longer actively maintained. The existing signed drivers work, but producing new builds requires driver signing infrastructure. Devices show up as "vJoy Device", not as a real controller.
-- **ViGEmBus**: needs a kernel driver. Existing signed drivers work, but producing new builds requires an EV code signing certificate ($300+/year). The project is retired.
-- **DsHidMini**: supports 5 HID modes (including DS4 and Xbox emulation) but requires a physical DualShock 3 connected. It translates real hardware, not arbitrary input sources.
-- **VHF**: a Microsoft kernel framework. Kernel mode only.
+Requirements: Visual Studio 2022+ with the MSVC x64 and ARM64 build tools, Windows SDK/WDK 10.0.26100.0, .NET 10. Runs on x64 and ARM64 Windows. `HIDMaestro.Core.dll` is one AnyCPU assembly that carries a driver payload for each and picks the one matching the machine it is on.
 
-HIDMaestro runs entirely in user mode. It works with locally generated self-signed certificates trusted by the target machine: no purchased certificate and no Windows test-signing boot mode required. It creates and removes controllers without rebooting. DirectInput, XInput, SDL3, and the Chrome Gamepad API see the identity and behavior the profile defines.
+As of v2.0.0 the SDK also runs in NativeAOT, trimmed and single-file apps. Profiles load through source-generated JSON, every Win32 call goes through `LibraryImport`, and the trim, single-file and AOT analyzers fail a Release build on any warning of theirs. A source build can leave out the ARM64 payload (`HMSkipArm64`) or the USB/IP transport (`HMSkipUsbip`), and can point at a NuGet WDK or at the variables an EWDK prompt sets. `HMBuildInfo` reports what a build carries, and a build without the USB/IP transport refuses a composite persona before it touches the machine. [Build settings](#build-settings).
 
-## Features
+```bash
+# Build the native driver + companion for x64 and ARM64, then the SDK (idempotent).
+scripts\build_all.cmd
 
-### No Kernel Driver
-HIDMaestro uses UMDF2 (User-Mode Driver Framework). The driver runs in a regular Windows process, not the kernel. A bug in HIDMaestro cannot blue-screen the machine. No EV certificate, no WHQL. HIDMaestro works with locally generated self-signed certificates trusted by the target machine; no purchased certificate or `testsigning` boot mode is required.
+# Minimal SDK consumer
+dotnet run --project example\SdkDemo
 
-### Exact Hardware Identity
-Choose from 225 embedded profiles across 32 vendors (Xbox 360, Xbox Series X|S, DualSense, DualSense Edge, DualShock 4, Thrustmaster wheels, Logitech HOTAS, Microsoft SideWinder FFB sticks, flight sticks, racing pedals, fight sticks, and more), or extend support through data-driven JSON profiles. Profiles define the public-facing identity and report behavior; vendor-specific extras (LEDs, audio, sensors) may require per-device work. For the public-facing identity and report path defined by the profile, HIDMaestro sets the exact VID/PID, product string, HID descriptor, axis count, button count, trigger behavior, and bus type. SDL3's controller database matches it. Steam recognizes it. Chrome identifies it. joy.cpl shows the right name.
+# Full test app: cert + build + sign + install all automatic, requires elevation
+cd test
+dotnet build
+bin\Release\net10.0-windows10.0.26100.0\win-x64\HIDMaestroTest.exe emulate xbox-360-wired
 
-### Cross-API Coverage
-Most solutions get one or two APIs right. HIDMaestro targets all of them simultaneously:
+# Several controllers at once, any mix of profiles
+HIDMaestroTest.exe emulate xbox-series-xs-bt xbox-360-wired dualsense
 
-| API | What HIDMaestro Delivers |
-|-----|-------------------------|
-| **DirectInput** | Correct axes, buttons, POV, VID/PID |
-| **XInput** | Separate triggers, proper button mapping, single slot |
-| **SDL3/HIDAPI** | Correct identity, Bluetooth bus type when tested |
-| **Browser Gamepad** | STANDARD GAMEPAD with separate triggers |
-| **WGI (GameInput)** | Proper Gamepad promotion via GameInput registry |
+# List or search the 337 profiles
+HIDMaestroTest.exe list
+HIDMaestroTest.exe search thrustmaster
 
-### Multi-Controller
-Multiple virtual controllers run simultaneously with no hard limit. Tested with 6 mixed (2x Xbox Series BT, 2x Xbox 360 Wired, 2x DualSense) with correct per-controller ordering across all APIs. XInput caps at 4 slots for Xbox-family profiles; non-Xbox profiles are visible through DInput/HIDAPI/WGI/RawInput/Browser without that limit.
+# Measure input latency
+HIDMaestroTest.exe latency xbox-360-wired
 
-### Force Feedback (HID PID 1.0)
-DirectInput games that interrogate the device with `HidD_GetFeature` for Block Load (0x12), Pool (0x13), and PID State (0x14) get real answers, not `STATUS_NOT_SUPPORTED`. The consumer fills a per-controller shared state section via `HMController.PublishPidPool` / `PublishPidBlockLoad` / `PublishPidState`; the driver reads from that section synchronously inside the GetFeature IOCTL handler with no IPC round trip. Until `PublishPidPool` is called at least once, the driver returns `STATUS_NO_SUCH_DEVICE` for the Pool Report — matching vJoy's "FFB not enabled" convention so DirectInput concludes "device exists but no FFB" without retrying.
+# Validate every API (XInput, DirectInput, HIDAPI/SDL3, browser, WGI, HID order)
+python scripts\verify.py --controllers 4
+```
 
-Effect-create and per-frame magnitude wire bytes (Set Effect 0x11, Set Constant Force 0x15, Set Periodic 0x14, Effect Operation 0x1A, Block Free 0x1B, Device Control 0x1C, Device Gain 0x1D) arrive via `OutputReceived`. The output channel is a 64-slot ring buffer drained on every poll iteration. `pid.dll` writes Set Effect → Set Constant Force → Effect Operation Start within 1-3 ms; the SDK polls at 8 ms; the ring drains every slot in between, so the magnitude packet that pre-1.1.40 single-slot channel coalesced now reaches the consumer's handler intact. Ring depth is 64 slots × 256-byte payload; consumer handlers must stay cheap (no synchronous I/O, no long locks) to avoid the ~512 ms reader-stall threshold beyond which the oldest packets get overwritten.
+The test app is self-contained. First run creates a locally trusted certificate, extracts and signs the driver, installs it, creates the controllers, and starts feeding a test pattern. One console window, no popups, requires administrator.
 
-Build the descriptor with [`HidDescriptorBuilder.AddPidFfbBlock`](sdk/HIDMaestro.Core/HidDescriptorBuilder.cs) — it emits the canonical "minimum viable" PID FFB block (one Feature report, Create New Effect 0x11), auto-injects the Report ID 0x01 prefix on input items, and rejects Gamepad-TLC misuse with a clear exception. Pair with [`HMProfileBuilder.FromDescriptorBuilder`](sdk/HIDMaestro.Core/HMProfileBuilder.cs) so the wire input report size (data + the +1 Report ID byte) is derived for you instead of hand-computed. Do not add additional Feature reports (0x12, 0x13, 0x14) inside the same Application Collection; the four-feature variant from vJoy's reference descriptor causes pid.dll to AV inside `PID_EffectOperation+0x52` the first time the consumer calls `CreateEffect` (DirectX 8-era pid.dll FFB enumeration bug, not OS-build-gated; verified on Windows 11 26100 — issue #16). Pool, Block Load, and PID State are served from the separate shared-section path that doesn't touch pid.dll's preparsed-data parser. See [example/SdkDemo/Program.cs](example/SdkDemo/Program.cs) section 4b.
+During emulation you can `remove 2` to dispose one controller, `2 dualsense` to live-swap controller 2, or `quit` to shut down cleanly.
 
-### Hot-Plug
-Create and remove controllers without reboots. Each controller is independently disposable: remove one while the others keep running, or switch profiles live within the same process. Single-controller creation takes ~200ms on a warm start; 6-controller mixed creation takes ~3.5s total. Subsequent runs on the same boot match fresh-boot timings — see Techniques: Session-Unique Instance-ID Suffix for the kernel-state-pollution fix that closes the gap.
+If you want to use HIDMaestro through a UI instead of code, install [PadForge](https://padforge.org/). It wraps this SDK with a full input-mapping app.
 
-### Profile-Based
-Every controller is a JSON file: VID, PID, descriptor, trigger mode, connection type are all data-driven. Adding support for a new controller means writing a JSON file, not modifying code. The profiles directory ships 225 profiles across 32 vendors covering gamepads, racing wheels, HOTAS sticks, flight sticks, pedals, arcade sticks, and more.
+### Build settings
 
-### Custom Controllers: build or modify any device
-Using the public `HidDescriptorBuilder`, `HMProfileBuilder`, and `HMDeviceExtractor` APIs, consumers can:
+`scripts\build_all.cmd` builds everything an official release carries: the UMDF2 driver, XUSB companion and SWD helper for x64 and ARM64, the OpenVR driver, and the SDK with usbip-win2's host controller driver for both architectures. Each setting below is an environment variable, which MSBuild reads as a property, so one setting reaches the native scripts and the SDK project alike. Each the SDK project reads also works as `-p:` on a `dotnet build` of the SDK. `HM_WDK_ROOT_ARM64` and `HM_STAMP_TIME` are read by the native scripts only.
 
-- **Clone and modify** an existing profile: e.g. take a DualSense (15 buttons) and create a variant with 16 buttons. Windows, Steam, and games still see "DualSense" because the VID/PID and product string are preserved, but the descriptor declares the extra button.
-- **Build new controllers from scratch**: define a custom flight stick, racing wheel, or arcade panel with arbitrary VID/PID, product string, axis count, button count, and axis resolution. No hex editing, no descriptor knowledge required.
-- **Spoof an arbitrary controller**: if you know a device's VID, PID, and product string, you can create a virtual copy even if it's not in the 225-profile catalog.
-- **Capture a connected device**: `HMDeviceExtractor.Extract` reads the cached HID descriptor Windows parsed from any real HID device you have plugged in and returns a ready-to-deploy `HMProfile`. No JSON authoring, no descriptor reverse engineering — point it at the controller and you get a matching virtual.
+| Setting | Effect | Default |
+|--|--|--|
+| `HMSkipArm64=true` | Builds and embeds the x64 driver, companion and helper only, and leaves out the ARM64 usbip-win2 host controller. | unset |
+| `HMSkipUsbip=true` | Leaves out the USB/IP transport: the host controller files, and the installers they are unpacked from. Nothing is downloaded, hashed or unpacked for it. | unset |
+| `HM_SDK_ROOT` | The Windows SDK: the `um` and `shared` headers, the `um` libraries, `rc.exe` and the signtool set the SDK embeds. | `WindowsSdkDir` when a Visual Studio or EWDK prompt set it, otherwise `%ProgramFiles(x86)%\Windows Kits\10` |
+| `HM_WDK_ROOT` | The WDK: the `km` headers, the UMDF 2.15 headers and stub library, and Inf2Cat. | `WDKContentRoot` when an EWDK prompt set it, otherwise `HM_SDK_ROOT` |
+| `HM_WDK_ROOT_ARM64` | The WDK for the ARM64 build. | `HM_WDK_ROOT` |
+| `HM_WDK_VERSION` | The kits' version folder. | `Version_Number` when an EWDK prompt set it, otherwise `10.0.26100.0` |
+| `HMWdkBin` | The folder whose `x64` and `arm64` folders hold the signtool set. | `HM_SDK_ROOT\bin\<version>\` |
+| `HMInf2catBin` | The folder whose `x86` folder holds Inf2Cat. | `HM_WDK_ROOT\bin\<version>\` |
+| `HM_STAMP_TIME` | The build's `DriverVer` stamp, `yyyy-MM-ddTHH:mm`. Every INF of a build carries the one stamp. Read by the native scripts only, so `-p:` does nothing. A time later than the clock, or earlier than the newest file under `driver\`, stops the build. | the time `build_all.cmd` starts, or the time `build.cmd` or `build_companion.cmd` starts when run alone |
 
-The result is an SDK for fully custom virtual controllers that present as real hardware to every API simultaneously, with no kernel driver and no fixed "vJoy Device" identity.
+The native scripts compile the driver, the companion and the OpenVR driver at `/W4` and hmswd at `/W3`, with the UMDF headers and Valve's `openvr_driver.h` marked external (`/external:I`, `/external:W0`), so warnings in those headers stay off and every warning in HIDMaestro's own sources prints. A full build prints none. No `/WX` is set, so a new warning does not stop the build. The driver and the companion compile at `/Ox /Os`, the WDK's release setting for a driver, the OpenVR driver at `/O2` and hmswd at `/O1`. Through v1.12.0 the driver and the companion had no `/O` switch, so cl.exe compiled them `/Od`.
+
+Installed kits need no setting. With the NuGet WDK, `HM_WDK_ROOT` is the `c` folder of `Microsoft.Windows.WDK.x64` and `HM_WDK_ROOT_ARM64` the `c` folder of `Microsoft.Windows.WDK.ARM64`, because each package carries the UMDF stub library for its own architecture only. The Windows SDK still comes from an installed kit, which Visual Studio's C++ workload installs. `HM_SDK_ROOT` cannot point at the SDK's own NuGet packages, which lay out libraries as `c\um\<arch>`. In an EWDK build prompt the defaults pick up the image's kit, version and Build Tools. The EWDK layout is read from the variables its prompt sets and has not been run. The scripts find Visual Studio through `VSINSTALLDIR` when a prompt set it, and otherwise search `%ProgramFiles%\Microsoft Visual Studio`. A root missing the folders the build reads stops the build with an error that names the setting.
+
+`HMBuildInfo` reports what a built `HIDMaestro.Core.dll` carries: `DriverArchitectures`, `UsbipArchitectures`, `HasOpenVrDriver` and `IsComplete`. Each is read once from the assembly's own resource names, so it describes the bytes embedded, whatever settings built it. A controller that needs a payload the build lacks for the machine's architecture throws `HMPayloadMissingException`, derived from `InvalidOperationException`, before any machine-wide step. `InstallDriver`, `InstallUsbipBackend` and `HMVR.EnsureDriverRegistered` throw it too, and `IsUsbipBackendAvailable` is false in a build without the transport. Official releases stay complete: `pre-tag-validate.cmd` clears `HMSkipArm64` and `HMSkipUsbip` before it builds, and `check_build_layouts.ps1` builds every layout above before the battery runs.
+
+---
+
+## Who ships it.
+
+Twenty-plus independent open-source projects have adopted HIDMaestro, across six languages, for a combined installed base of about 574,000 downloads as of September 2026. Roughly 27,700 of those builds ship or fetch the runtime directly.
+
+### PadForge
+
+[PadForge](https://padforge.org/) is the flagship implementation. It is built on this SDK end to end and drives more of the surface than any other consumer: every profile family, live profile swapping, multi-controller slots, force feedback, controller audio and haptics, the Valve personas, and the virtual VR controllers. Its Softpedia listing is an Editor's Pick at 5.0 out of 5.
+
+To watch the SDK work without writing any code, install PadForge. If you are building your own app, it is the worked example of what this SDK does at full stretch.
+
+### Everyone else
+
+| Project | What it does with HIDMaestro |
+|--|--|
+| [foundation-sunshine](https://github.com/AlkaidLab/foundation-sunshine) | Sunshine fork. Its DualSense support is built on HIDMaestro |
+| [Vibepollo](https://github.com/Nonary/Vibepollo) | Sunshine fork. Its DualSense over USB/IP draws on HIDMaestro's composite descriptors |
+| [Sunshine Control Panel](https://github.com/qiin2333/sunshine-control-panel) | Installs Foundation Sunshine's DualSense sidecar, HIDMaestro Core included |
+| [Kitsune Input](https://kitsuneinput.com/app) | DualSense bridge app. Its virtual gamepad is derived from HIDMaestro |
+| [HHL Gamepad WLAN](https://github.com/HandHeldLegend/hhl-gamepad-link) | HandHeld Legend's app for HOJA gamepads over WLAN, on a pinned HIDMaestro |
+| [JoystickGremlinEx](https://github.com/muchimi/JoystickGremlinEx) | Flight-sim remapper. Drives the SDK from Python over pythonnet |
+| [Rubylight](https://github.com/RamazanKara/Rubylight) | Moonlight streaming host. Its DualSense haptics draw on HIDMaestro's composite descriptors |
+| [Nearcade](https://github.com/TheRealFame/Nearcade) | Remote-play bridge. Pins the SDK as a submodule |
+| [GKME](https://github.com/4zyz4/GKME) | Android phone as a Windows gamepad. Credits HIDMaestro as its driver framework |
+| [FlexInput](https://github.com/x-iso/FlexInput) | Uses HIDMaestro as its default virtual-device backend |
+| [DirectXInput](https://github.com/dumbie/DirectXInput) | Its source drives Xbox pads, keyboards and mice through HIDMaestro |
+| [dualsense-command](https://github.com/shiftedx/dualsense-command) | Bundles the runtime in its bridge installers |
+
+The [full list](https://hidmaestro.org/specs.html#adopters) is on hidmaestro.org.
+
+---
+
+## Identity: exact hardware, down to the bus.
+
+VID/PID, product string, descriptor, axis and button layout, and bus type all match the real device. A Bluetooth controller reports as Bluetooth, not as a USB device wearing its name.
+
+- **Exact hardware identity.** VID/PID, product string, HID descriptor, axis and button counts, trigger behavior, and bus type all come from the profile. SDL3's controller database matches it, Steam recognizes it, Chrome identifies it, joy.cpl shows the right name. A Bluetooth controller carries the hardware and compatible IDs a real device of its transport carries, classic `BTHENUM` or LE `BTHLEDevice` (`bluetoothTransport`), so it reports as Bluetooth, not as a USB device wearing its name. A profile's `xinput` block says how the device reaches XInput, through an XUSB companion as a wired Xbox 360 pad does or through Microsoft's xinputhid, and what the companion answers, subtype, flags and battery included.
+- **Devices are JSON over general mechanisms.** Add a controller by writing a data-only JSON profile or by capturing one you already own. A report field's wire form is parameters: `min` and `max`, `invert`, a `center` for offset binary, a `scale` for motion counts, a battery level table, bit groups packed across frames, a sensor clock that counts elapsed time. A device that carries several controllers in one report, and the commands it answers, are data too: the Wii U GameCube adapter's four ports and its command protocol are its profile, run by mechanisms any profile can use. A device that builds its reports from its own state, as the Switch 2 Pro does, carries a state block and report programs, and its command protocol is the profile's top-level `protocol`. The build turns each catalog program into code, and a profile from your own directory runs the same programs on an interpreter, with no rebuild.
+- **Profile errors name their JSON path.** Profiles load strictly. A key the schema lacks, a key written twice, a value a check refuses or an id already loaded refuses the file, and `HMContext.ProfileLoadIssues` lists each refused file with the JSON path and the reason, such as `$.extendedReport.fields[3]` and `extendedReport.fields[3] ('uint16-trigger').max is required`. A profile built or changed in code meets the same checks at create, which throws `HMProfileException` before it touches the machine.
+- **Device behavior comes from models.** A profile takes the feature answers, protocol and presentation it does not carry itself from a model it names with `deviceModelFrom`, or from the identity defaults: data that gives a profile made outside the catalog, by `HMProfileBuilder`, `HMDeviceExtractor` or your own JSON, the behavior its VID and PID got from code in 1.x. A directory you load can carry its own models. `HMProfile.DeviceModelSource` says where each part came from.
+- **Every value comes back as it went in.** The SDK writes every normalized value to the wire by one rule, nearest with ties to even, in double precision. A raw value a program reads from a real device, normalizes and submits arrives as that value, on sticks, triggers, XInput and every report field, except on a 16-bit centered stick, where a program that normalizes in float gets 64 or 65 values just above the center back one count low. A stick the program leaves unwritten rests at its center, and a NaN writes the field's resting value. A profile's `axisCenters` puts a stick's center where its device's hosts read zero, as the Luna profiles do for SDL.
+- **Sony pads answer the whole startup interrogation.** A game with native PlayStation support interrogates a DualSense before it will use it: firmware info, pairing info, then motion calibration. Serve a plausible-looking blob of zeros to any of them and the pad is refused, which is why a virtual controller can work in Steam Input and still be invisible to the game. Calibration is a divisor, so zeros make the consumer's sensitivity NaN. Firmware info is validated on content, and a real title abandons the device and retries every 500 ms on a zeroed reply, before it ever asks for calibration. HIDMaestro serves real payloads for all of them on both the UMDF2 and composite backends from the same answer tables, profile data the Sony profiles name, with every field offset checked against the Linux `hid-playstation` driver and a second independent consumer. The calibration is the identity for the pads' own units, so a submitted 1 g reads as 1 g in SDL and Linux, and the Bluetooth profiles end those replies with the CRC-32 a real pad sends over Bluetooth, which Linux and RPCS3 check.
+- **Where hardware revisions disagree, the current one wins.** A DualSense made in 2020 reports the product string `Wireless Controller`. A DualSense made today reports `DualSense Wireless Controller`. Both report `bcdDevice` 0x0100, so nothing on the wire distinguishes them and a profile can only serve one. As of v1.4.5 `dualsense` and `dualsense-composite` serve the current string, because a consumer keyed to the launch string is already broken against real modern hardware. The launch string stays reachable on `dualsense-bt`, whose `dualsense-bt-full` sibling carries the current one.
+- **The same device on every life.** A virtual controller keeps its device paths, container id and USB serial across a dispose and recreate, a process restart, a reboot and a driver upgrade, so a program that stored a binding against the path or the serial keeps it. While a program built on HIDMaestro 1.12.0 runs, a keyless controller lands on transport index 64 or above and gets that index's identity, and every controller's HID serial follows its index (see [Programs side by side](#programs-side-by-side)). Pass an identity key that means something to you, or pass none and the controller index is the key:
+
+  ```csharp
+  using var pad = ctx.CreateController(profile, "slot0");   // same paths every time
+  ```
+
+  Every family is covered: plain HID parents take an explicit instance id with the child's `ParentIdPrefix` written before registration, the Xbox families take a fixed software-device tuple, and the composite personas serve a serial derived from the key. A different profile at the same key keeps the identity and refreshes the descriptor. Verified by a battery that measures parent, child, interface path, DirectInput GUID, SDL3 path and USB serial across nine lives per family. When the record of an identity's HID child is out of the tree with no driver, as a removal vetoed under an older build left it, a parent with an explicit instance id gives its child the next prefix, `1&hash&1` to `1&hash&3`, and that child gets a new path. [How this works](docs/INTERNALS.md#stable-device-identity-across-lives).
+- **Protocol controllers.** The Nintendo Switch Pro Controller is not a passive device: hosts drive a Nintendo subcommand handshake and stall without a device that answers. HIDMaestro answers it from the profile's data over the real Bluetooth wire (the shipped descriptor is extracted byte-exact from a live Pro's SDP cache): SPI calibration reads, input-mode switch, full-mode 0x30 reports with gyro and accel at the 49-byte Bluetooth report size every 15 ms on the device's own clock. `switch-pro-usb` is the same pad on its USB descriptor, with the USB handshake and 64-byte reports. SDL3's HIDAPI driver and Steam Input bind it as a real Bluetooth Pro Controller with motion and rumble. Before any protocol host arrives, and after a host selects simple mode, the pad sends genuine 12-byte 0x3F simple-mode frames whenever its state changes, as a real pad does, the one report DirectInput can parse, so joy.cpl reads a working controller in exactly the states real hardware allows.
+- **Pressure-sensitive buttons for PS3 emulators.** The `dualshock-3-full` persona is a DualShock 3 in the form Sony's sixaxis.sys driver and DsHidMini's SXS mode present on Windows, which is where PCSX2 and RPCS3 read button pressure. The face buttons, shoulder buttons and d-pad directions each take a pressure from 0 to 255 (`HMGamepadState.PressureA` through `PressureDpadLeft`), and L2 and R2 take theirs from the triggers. A pressed button left at pressure 0 reads fully pressed, so code that only knows digital state still works. Motion and battery ride the same report, and rumble and the player LEDs come back on `OutputDecoded`. Stock SDL, configured the way PCSX2 configures it, reads every axis and pressure back, and RPCS3's reads and writes replayed against the persona decode correctly. Neither emulator has been run against it yet.
+
+### Custom controllers
+
+The `HidDescriptorBuilder`, `HMProfileBuilder`, and `HMDeviceExtractor` APIs let you build or modify any device:
+
+- **Clone and modify.** Take a DualSense (15 buttons) and ship a 16-button variant. Windows, Steam, and games still see "DualSense" because the VID/PID and product string are preserved.
+- **Build from scratch.** Define a flight stick, racing wheel, or arcade panel with arbitrary VID/PID, axis count, button count, and resolution. No hex editing.
+- **Capture a real device.** `HMDeviceExtractor.Extract` reads the HID descriptor Windows parsed from any device you have plugged in and returns a ready-to-deploy profile. Point it at the controller, get a matching virtual. It reads the bus from the parent devnode's compatible IDs, as hidapi and SDL do, so a Bluetooth controller extracts as Bluetooth with its transport.
 
 ```csharp
 // Clone a DualSense and add a button
@@ -93,703 +178,391 @@ var custom = new HMProfileBuilder()
         .AddTrigger("Left", 8).AddTrigger("Right", 8)
         .AddButtons(16).AddHat()
         .Build())
-    .InputReportSize(8)
+    .InputReportSize(9)
     .Build();
 using var ctrl = ctx.CreateController(custom);
-
-// Or build a flight stick from nothing — 16-position hat (22.5° per click)
-var stick = new HMProfileBuilder()
-    .Id("my-stick").Name("My Flight Stick")
-    .Vid(0x0483).Pid(0x0001)
-    .ProductString("Custom HOTAS")
-    .Descriptor(new HidDescriptorBuilder()
-        .Joystick()
-        .AddStick("Left", 16)
-        .AddTrigger("Left", 8).AddTrigger("Right", 8)
-        .AddButtons(12).AddHat(positions: 16)
-        .Build())
-    .InputReportSize(8)
-    .Build();
-using var ctrl2 = ctx.CreateController(stick);
-
-// Profiles with more analog axes than 4 sticks + 2 triggers (HOTAS with
-// throttle quadrant, racing wheels with brake/throttle/clutch pedals,
-// flight sticks with rudder pedals) declare each axis by HID usage and
-// drive it via state.Axes. profile.AvailableAxes enumerates what the
-// descriptor exposes; profile.Sticks / profile.Triggers are the variable-
-// length simple-view lists.
-var hotas = new HMProfileBuilder()
-    .Id("my-hotas").Name("Throttle Quadrant")
-    .Vid(0x0483).Pid(0x0010)
-    .ProductString("Custom HOTAS")
-    .FromDescriptorBuilder(new HidDescriptorBuilder()
-        .Joystick()
-        .AddStick("Left", 16)
-        .AddAxis(HMAxis.Slider, 8)     // throttle slider
-        .AddAxis(HMAxis.Rudder, 8)     // rudder pedal
-        .AddAxis(HMAxis.Brake,  8)     // toe brake
-        .AddButtons(8).AddHat())
-    .Build();
-using var ctrl4 = ctx.CreateController(hotas);
-foreach (var a in hotas.AvailableAxes) Console.WriteLine($"  {a}");
-ctrl4.SubmitState(new HMGamepadState
-{
-    Axes = new Dictionary<HMAxis, float>
-    {
-        [HMAxis.X]      = 0.75f, [HMAxis.Y] = 0.4f,   // stick (0.5 = center)
-        [HMAxis.Slider] = 0.75f,
-        [HMAxis.Rudder] = 0.25f,
-        [HMAxis.Brake]  = 0.00f,
-    },
-});
-
-// Drive the hat at full descriptor resolution. The encoder picks the
-// first non-null in: HatDegrees > HatHundredths > HatRaw > Hat.
-ctrl2.SubmitState(new HMGamepadState { HatDegrees = 22.5f });   // ENE
-ctrl2.SubmitState(new HMGamepadState { HatHundredths = 11250 }); // 112.5° = ESE
-ctrl2.SubmitState(new HMGamepadState
-{
-    HatRaw = (ushort)(stick.HatLogicalMin!.Value + 7)            // bit-exact
-});
-
-// v1.3.9 input shape — one unified axes dict drives every analog input.
-// Discover what's drivable via profile.Sticks / profile.Triggers
-// (variable-length lists), then write to state.Axes by HMAxis. Layout-
-// authored profiles map their physical axes deterministically; classifier-
-// derived fallbacks apply for unauthored profiles.
-var pad = ctx.GetProfile("xbox-360-wired")!;
-using var ctrlPad = ctx.CreateController(pad);
-var axes = HMGamepadStateHelpers.StandardAxes(pad,
-    leftStickX: 0.75f, leftStickY: 0.5f,
-    rightStickX: 0.5f, rightStickY: 0.5f,
-    leftTrigger: 0.0f, rightTrigger: 1.0f);
-// Or set any axis directly: state.Axes[HMAxis.Slider] = 0.7f;
-ctrlPad.SubmitState(new HMGamepadState { Axes = axes, Buttons = HMButton.A });
-
-// PadForge-style consumer: render the right widget per profile by Layout.Kind,
-// drive each entry by its HMAxis.
-switch (pad.Layout)
-{
-    case HMWheelLayout w:
-        // w.Wheel.Axis, w.Pedals[].Axis, w.Shifters[].ButtonIndex, ...
-        break;
-    case HMHotasLayout h:
-        // h.Stick, h.ThrottlePrimary, h.ThrottleSecondary[], ...
-        break;
-    case HMGamepadLayout g:
-        // g.Sticks, g.Triggers, g.FaceButtons[], ...
-        break;
-}
-
-// Or capture a physical controller and deploy as a virtual
-var device = HMDeviceExtractor.ListDevices()
-    .First(d => d.VendorId == 0x046D && d.ProductId == 0xC216);
-var extracted = HMDeviceExtractor.Extract(device);
-using var ctrl3 = ctx.CreateController(extracted);
-// Virtual now presents with the real device's descriptor, VID/PID,
-// product string — identical to what the physical device reports.
 ```
 
-### Profile Extractor (GUI tool)
+`InputReportSize` is the input report's whole length on the wire, its ID byte included. A profile names the report its raw frames fill with `dataReportId` when the SDK's choice, the first input report with game pad fields or a keyboard's or mouse's first input report, is not the one the device sends. A descriptor hex string that is not whole hex bytes refuses the file at load, and a profile built in code at create with `HMProfileException`.
 
-Every HIDMaestro release ships a standalone WPF app (`HIDMaestroProfileExtractor.exe`) under `HIDMaestroProfileExtractor/` in the release ZIP. It calls the same `HMDeviceExtractor` API from a dropdown-and-save UI:
+Adding a controller to HIDMaestro is a data change. The SDK and the drivers hold no device-specific code: battery scenario S88 fails on a device name, a vendor or product ID compared or switched on, or a profile field only one device sets, anywhere in the SDK, the drivers, the companion or hmswd. The Sony feature answers, the Switch Pro's and Switch 2 Pro's protocols, the DualShock 3's sixaxis form and the XUSB companion's answers are all profile data. Adding a device to a code-per-device emulator means writing and compiling a new device implementation. That difference is the whole point of the profile system.
 
-1. Plug any HID device into Windows.
-2. Run `HIDMaestroProfileExtractor.exe` (no admin required).
-3. Pick the device from the dropdown, click **Extract**.
-4. Save the Profile JSON to disk or copy it to the clipboard.
-
-The output is the exact JSON format shipped in `profiles/<vendor>/<slug>.json`. Drop it in a PR (or an [issue via the profile contribution template](https://github.com/hifihedgehog/HIDMaestro/issues/new?template=profile-contribution.yml)) to add the profile to the catalog so every HIDMaestro user can emulate that controller without owning it themselves.
-
-The extractor reads only the cached HID descriptor Windows has already parsed — no live input capture, no gameplay involvement. Reconstruction uses a C# port of the libusb/hidapi algorithm (Chromium WebHID team's reverse engineering of Microsoft's preparsed-data layout). Output is logically equivalent to the device's real HID report descriptor: same report IDs, field layouts, logical ranges, usage pages, and sizes.
-
-## Techniques
-
-A few HIDMaestro techniques that are not well documented elsewhere in the virtual controller space.
-
-### Velocity Usage Descriptor Trick
-
-Real Xbox 360 controllers have a combined trigger axis (Z) in DirectInput: both triggers share one axis. Browsers and WGI need separate trigger values. Previous solutions had to choose: correct DI (5 axes, combined) or correct browser (separate triggers, 6 axes).
-
-HIDMaestro uses HID velocity usages (Vx and Vy, Usage Page 0x01, Usages 0x40/0x41) to carry separate trigger values in the same HID report. DirectInput does not map velocity usages to any axis slot, so it sees 5 axes. GameInput/WGI enumerates them as additional axes and reads separate trigger data via the GameInput registry mapping.
-
-Result: 5 axes and 10 buttons in DirectInput (matching real xusb22.sys), separate triggers in the browser (matching real XInput), all from one HID descriptor.
-
-### Data-Driven Vendor-Blob Codec (Sony USB + BT)
-
-Sony BT controllers (DualSense, DualSense Edge, DS4 BT) declare their input as a 78-byte vendor-defined "blob" — one opaque field with no descriptor-level breakdown of which bytes carry sticks vs buttons vs gyro vs CRC32. Pre-v1.3.5 the SDK couldn't pack this and fell back to emitting basic Report 1 (9 bytes), which Steam Input misclassified as USB and `dualsense-tester` couldn't parse.
-
-v1.3.5 makes the byte layout data: profile JSON declares `extendedReport` (input) and `extendedOutputReport` (output) blocks describing every field's type, byte position, and bit range. The SDK becomes a generic codec that walks the field list. Future profiles with vendor blobs (Switch Pro extended, vendor-specific wheels) add the JSON only — no SDK code changes per profile.
-
-The full Sony catalog ships with v1.3.5 data-driven blocks: DS5 BT (`dualsense-bt`, `dualsense-bt-full`, `dualsense-edge-bt`) gain both input + output (Report 0x31, 78-byte BT-format with `[0xA1,0x31]`/`[0xA2,0x31]` CRC32 prefixes); DS4 BT (`dualshock-4-v2-bt`) gets input + output (Report 0x11, `[0xA1,0x11]`/`[0xA2,0x11]` CRC32 prefixes); DS5 USB (`dualsense`, `dualsense-edge`) and DS4 USB (`dualshock-4-v1`, `dualshock-4-v1-full`, `dualshock-4-v2`) gain output blocks (Report 0x02 / Report 0x05; no CRC since USB is reliable). PadForge can drive any of them via `HMOutputEncoder.Encode(profile, fields)` without inline byte-packing.
-
-```jsonc
-"extendedReport": {
-  "reportId": "0x31",
-  "size": 78,
-  "fields": [
-    { "byte":  2, "type": "uint8-axis", "semantic": "leftStickX", "center": 128 },
-    { "byte":  9, "bits": "0-3", "type": "hat-octant", "neutralValue": 8 },
-    { "byte":  9, "bits": "4-7", "type": "button-mask", "buttons": ["X","A","B","Y"] },
-    { "bytes": "74-77", "type": "crc32-le",
-      "scope": { "prefix": [161, 49], "from": 1, "to": 73 } }
-  ]
-}
-```
-
-Round-trip in both directions: `controller.OutputDecoded` event surfaces incoming output reports as parsed-field dictionaries (rumble amplitudes, lightbar RGB, adaptive-trigger blobs); `HMOutputEncoder.Encode(profile, fields)` produces wire-format bytes from a parsed-field dictionary, used by consumers driving real devices from synthesized state without reimplementing byte layouts. `HMController.EncodeOutput(fields)` is the per-controller variant that auto-advances the rolling-counter state (Sony BT `btTag` cycles 0x00→0x10→…→0xF0→0x00 with stride 16) instead of forcing the consumer to track wraparound. `HMController.OnSubmitLatencyMicros` exposes per-frame submit latency for consumers driving timing-sensitive paths.
-
-The encoder/decoder reaches the public input-state surface too. `HMGamepadState` ships per-frame fields the Sony JSON blocks understand: `TouchpadFinger0Active/X/Y/Id` + `TouchpadFinger1Active/X/Y/Id` + `TouchpadPacketCounter`, `GyroPitch/Yaw/Roll` + `AccelX/Y/Z` + `SensorTimestamp` (DS4 100µs ticks; DS5 microseconds), and `BatteryLevel` (0..10) + `BatteryCharging` + `BatteryFull` + `MicMuted` + `HeadphonesConnected`. Profiles that don't declare these regions silently ignore them, so the same caller code works across every controller. `dualsense-tester` (ds.daidr.me) renders touchpad coordinates, the IMU vector, and the battery panel for any DualSense or DualSense Edge virtual (USB or BT) once the consumer fills these fields.
-
-DS4 Bluetooth vibration through the browser Gamepad API is fixed in v1.3.5 by setting the device's `HidD_GetAttributes` `VersionNumber` to 0 — the value Chromium's `DualShock4Controller::BusTypeFromVersionNumber` checks for the BT-format report header. Pre-v1.3.5 the SDK hardcoded `0x0100` (USB), Chromium picked the wrong wire layout, and the rumble bytes never reached the device. Profiles can now override `versionNumber` in JSON; `dualshock-4-v2-bt.json` ships with `0`. Steam Input never used this gate so v1.3.5 doesn't change Steam behavior either way.
-
-### BTHLEDEVICE Bus Type Spoofing
-
-HIDAPI detects Bluetooth controllers by checking for `BTHLEDEVICE` in the device's CompatibleIDs. HIDMaestro sets this property from user mode during device creation, without Bluetooth hardware and without a kernel bus driver.
-
-SDL3 then uses its Bluetooth-specific controller parsing path, which handles the descriptor correctly. Without this spoof, SDL3's default parser produces zeros for certain virtual device configurations.
-
-### &IG_ Enumerator Trick
-
-By using `VID_*&PID_*&IG_00` as the device enumerator, the HID child's device path contains `&IG_`. This has three simultaneous effects:
-
-- **Chrome RawInput** skips it (prevents duplicate gamepad entries)
-- **HIDAPI** skips it (by design for XInput-handled devices)
-- **SDL3** still detects it (falls through to RawInput backend, maps by VID/PID)
-
-One string in a device path controls three different detection paths across three different libraries.
-
-### GameInput Registry Override
-
-Windows has a built-in GameInput mapping database for known VID/PIDs. HIDMaestro writes custom mappings that point the trigger axes to the velocity usage indices (5 and 6 instead of the default combined axis 4). This makes WGI's Gamepad object read actual separate trigger values from the Vx/Vy fields.
-
-### xinputhid UpperFilter Tripwire
-
-WGI (`Windows.Gaming.Input.dll`) admits devices into its provider graph through `ProviderManagerWorker::OnPnpDeviceAdded`. A Ghidra decomp of that function on Win11 26200 showed the gate: WGI accepts a device only if its ClassGuid is in a hard-coded four-entry pass-list (`HIDClass`, `XnaComposite`, one other setup class, one GameInput class) OR if `IsDeviceOrAncestorFilteredBy(path, L"xinputhid")` returns true. The fallback check is a literal `wcsncmp` against strings in the device's (or any ancestor's) `UpperFilters` MULTI_SZ.
-
-HIDMaestro's XUSB companion (`SWD\HIDMAESTRO\<sid>_NNNN`) runs under the System class `{4d36e97d-...}`. That class is not on the pass-list, so before this work WGI silently skipped the companion despite it publishing the XUSB device interface — Chromium's `put_Vibration` went nowhere for Xbox 360 Wired.
-
-The fix writes the string `"xinputhid"` to the companion's `UpperFilters` registry value via the INF's `HKR` AddReg. `xinputhid.sys` is a HID-class filter, so it never actually attaches to the System-class companion; the string sits inert in the registry and WGI's wstring compare passes anyway. The companion enters WGI via the XUSB dispatch path, and `IOCTL_XUSB_SET_STATE` starts reaching the driver with real motor bytes on `put_Vibration`.
-
-The same string gets written per-instance to the HID parent by `DeviceOrchestrator` for XUSB-companion profiles only. That second write blocks WGI's `HidClient::CreateProvider` from synthesizing a duplicate HID-backed Gamepad for the same logical controller, so WGI shows exactly one Gamepad with live input and working vibration instead of two pads splitting the responsibilities.
-
-The 29-byte `IOCTL_XUSB_WAIT_FOR_INPUT` reply format was nailed down in the same decomp pass: `state[9] = 0x00` so `XusbInputParser`'s built-in Gamepad template matches (a prior 0x14 value produced an all-zero `GetCurrentReading` despite input arriving), plus the `state[10] = 0x14` non-zero gate byte, `state[2] = 0x03 RESUMED` on every completion, and version bytes `0x01 0x03` at `state[0..1]`.
-
-### SWD Migration: the XInput slot-1-skip fix
-
-Pre-fix, HIDMaestro created its devnodes via `SetupDiCreateDeviceInfoW` under `ROOT\` — the standard root-enumerated path. Windows assigns the null-sentinel ContainerID `{00000000-0000-0000-FFFF-FFFFFFFFFFFF}` to ROOT-enumerated devices unless overridden, and the SetupAPI path provides no way to override it.
-
-Ghidra decomp of `xinput1_4.dll` on Win11 26200 traced the consequence. `FUN_18000de2c` returns 1 when ContainerID matches the null sentinel OR when HardwareIds contains the literal `XINPUT_EMBEDDED_DEVICE` substring. Caller `FUN_18000c728` at `0x18000C8AE` does `test al, al; jne → or dword ptr [rbx], 4`, setting bit 2 on the device struct. `FUN_18000f85c`'s fallback allocator at `0x18000F9C3-C7` skips internal slot 0 for bit-2 devices when Feature Manager flag `0x39EB83D` is on; `FUN_18000f178` then promotes the first bit-2 slot to "primary" and the query-time swap at `FUN_18000f08c` surfaces an empty slot 1 to consumers.
-
-The fix is a one-line API switch: use `SwDeviceCreate(pContainerId = real-per-controller-GUID, ...)` instead of `SetupDiCreateDeviceInfoW`. The SwDevice API takes an explicit container GUID; we pass `{48494430-4D41-4553-5452-4F000000<idx:X4>}` (ASCII "HIDMAESTRO" + 16-bit controller index) so each virtual gets a deterministic non-sentinel container shared by its main + companion devnodes. `de2c` returns 0, bit 2 stays clear, slot allocator fills 0..3 contiguously.
-
-The xinputhid-path profiles (Xbox Series BT etc.) moved fully to `SWD\HIDMAESTRO_VID_<vid>_PID_<pid>&IG_00\` because the SwDevice path is the only reliable way to inject a real ContainerID. The non-xinputhid Xbox path keeps its main HID device on `ROOT\VID_*&PID_*&IG_00\` (existing INF binding) and moves only the XUSB companion to `SWD\HIDMAESTRO\`. Both companion paths share the same per-controller container GUID with the main HID, which is what xinput1_4 dedups against.
-
-The underscore between VID and PID in the gamepad-companion enumerator (`HIDMAESTRO_VID_045E_PID_0B13&IG_00`, not `...VID_045E&PID_0B13...`) avoids a Windows PnP edge case in which any SWD enumerator name matching the substring `VID_*&PID_*&IG_*` registers in the registry but never enumerates as a live devnode. The `&IG_00` suffix is preserved because the HID child inherits its parent's enumerator name as the first segment of its instance path, and HIDAPI/SDL3/Chromium all blocklist `&IG_` substrings to avoid duplicating XInput-claimed devices.
-
-### Session-Unique Instance-ID Suffix
-
-The SWD migration immediately exposed a second Windows PnP behavior: after `SwDeviceClose` finalizes a devnode with `SWDeviceLifetimeParentPresent`, the kernel retains a sticky per-`(enumerator + instanceId + ContainerId)` record. A subsequent `SwDeviceCreate` with the identical tuple takes a "reuse-existing" fast path that creates an empty registry shell — no Service or Driver bound, no device-interface class registered — and reports success to the caller. The sticky state survives across processes and across same-boot uninstall + reinstall of the INF.
-
-Symptoms before the fix: first run after a fresh boot was fast and all APIs passed, but every subsequent run on the same boot saw `SwDeviceCreate` return `S_OK` synchronously while the devnode never materialized. `CM_Locate_DevNodeW` returned `CR_NO_SUCH_DEVNODE` the entire time the SDK waited; the creation callback timed out at 30s with `E_FAIL`. Phase-1 creation ballooned from ~2s to 65s (15s callback wait × 2 BT slots + 15s XInput slot-claim wait × 2 Xbox 360 slots), and XInput lost visibility for the XUSB-companion path because the empty-shell devnode never bound `HMXInput.dll` and so never registered the XUSB device-interface class.
-
-Fix: prepend the current process's PID in hex to every SwD instance-id suffix, e.g. `SWD\HIDMAESTRO\A7B4_0002`. Each launch gets a unique tuple, the kernel runs a fresh full install, and the devnode binds correctly. `FindExistingCompanion` matches by `Device Parameters\ControllerIndex` (not by suffix) so cleanup and teardown sweep across instances regardless of which session created them. Verified on this machine: 5 back-to-back same-boot 4-controller runs all complete Phase 1 in 2.2-2.8s with `verify.py` ALL PASS and zero registry-carcass accumulation post-teardown.
-
-## Comparison
-
-| Feature | HIDMaestro | ViGEmBus | DsHidMini | vJoy |
-|---------|-----------|----------|-----------|------|
-| Kernel driver required | **No** | Yes | No (UMDF2) | Yes |
-| EV certificate for new builds | **No** | Yes | No | Yes |
-| Physical hardware required | **No** | No | Yes (DS3) | No |
-| Profile-defined controller identity | **Yes** | No (2 types) | Yes (5 modes) | No (fixed) |
-| Bluetooth bus type spoof | **Yes** | No | No | No |
-| Single browser gamepad entry | **Yes** | Yes | N/A | No |
-| XInput with separate triggers | **Yes** | Yes | Yes | No |
-| DirectInput with correct axes | **Yes** | Yes | Yes | Partial |
-| SDL3 with correct identity | **Yes** | Yes | Yes (real HW) | No |
-| Hot-plug without reboot | **Yes** | Yes | N/A | No |
-| Data-driven profiles | **Yes** | No | No | No |
-| Custom descriptor builder | **Yes** | No | No | Yes (fixed layout) |
-| Clone + modify existing profiles | **Yes** | No | No | No |
-| Spoof arbitrary VID/PID | **Yes** | No | No | No |
-| Status | **Active** | Retired | Active | Stale |
-
-## Architecture
+`HIDMaestroProfileCheck`, in the release ZIP beside the profile extractor, checks a profile file or directory as the SDK loads it and prints each problem with its JSON path:
 
 ```
-User-Mode Test App
-  │ Writes input data to per-controller shared memory section
-  │ Manages device lifecycle (create, configure, remove)
-  │
-  ├──► Shared Memory (per-controller, pagefile-backed)
-  │     SeqNo(4) + DataSize(4) + Data[256] + GipData[14] = 278 bytes
-  │     Data[256] carries HID input reports up to 256 bytes (DualSense BT
-  │       report 0x31 = 78 bytes, Switch Pro motion-IMU reports, etc.).
-  │     Event-driven: SDK signals InputDataEvent on each write.
-  │
-  ├──► Main HID Device (HIDMaestro.dll via mshidumdf)
-  │     Xbox 360 Wired:    ROOT\VID_045E&PID_028E&IG_00\NNNN
-  │     Xbox Series BT:    SWD\HIDMAESTRO_VID_045E_PID_0B13&IG_00\<sid>_NNNN
-  │     Plain HID:         ROOT\VID_xxxx&PID_yyyy&IG_00\NNNN
-  │     ├─ HID descriptor with Vx/Vy velocity triggers
-  │     ├─ Event-driven worker reads shared memory → HID READ_REPORT
-  │     │   (seqno-gated: idle CPU cost ~0.04% per controller)
-  │     ├─ Explicit non-sentinel ContainerID via SwDeviceCreate's
-  │     │   pContainerId (xinputhid path only) so xinput1_4!FUN_18000de2c
-  │     │   does not flag the devnode as embedded/primary and skip slot 0.
-  │     │   See Techniques: SWD Migration for the slot-1-skip fix.
-  │     ├─ Per-process session-id prefix on instance-id suffix
-  │     │   (`<pid-hex>_NNNN`) so Windows PnP's sticky per-container
-  │     │   reuse-fast-path doesn't leave subsequent-run devnodes as
-  │     │   empty registry shells. See Techniques: Session-Unique Suffix.
-  │     ├─ USB interface (XUSB-companion profiles also get the xinputhid
-  │     │   UpperFilter written per-instance by the SDK — see Techniques)
-  │     ├─ Legacy WinExInput interface registration retained for historical
-  │     │   compatibility; Ghidra decomp of Windows.Gaming.Input.dll showed
-  │     │   zero references to its GUID, so it is not WGI's actual hook
-  │     └─ BTHLEDEVICE CompatibleIDs (Bluetooth profiles)
-  │
-  └──► XUSB Companion (HMXInput.dll, System class)
-        SWD\HIDMAESTRO\<sid>_NNNN  (non-xinputhid Xbox profiles only)
-        ├─ XUSB interface {EC87F1E3-...} → XInput discovery + WGI dispatch
-        ├─ UpperFilters = "xinputhid" (pure registry-string tripwire that
-        │     admits the device to WGI's XUSB path without xinputhid.sys
-        │     actually attaching — see Techniques below)
-        ├─ Same explicit non-sentinel ContainerID as the main device
-        │   (per-controller GUID derived from the controller index) so
-        │   the two devnodes group as one logical controller in Settings
-        │   and xinput1_4 dedups them into a single slot.
-        ├─ Event-driven: reads GipData from shared memory
-        └─ Handles GET_STATE/GET_CAPABILITIES/SET_STATE IOCTLs; returns
-           29-byte WAIT_FOR_INPUT frames with state[9]=0x00 so WGI's
-           XusbInputParser matches the Gamepad template's reportId=0
-
-Both INFs set `UmdfHostProcessSharing = ProcessSharingDisabled`, so every
-device instance gets its own WUDFHost process (~8 MB RSS, ~10 threads).
-With 6 simultaneous controllers that's 8 per-instance hosts in place of
-the default 1 shared host. The per-controller IO paths run in parallel
-instead of serializing through one host's thread pool; idle CPU stays
-near zero and peak throughput scales with controller count.
+HIDMaestroProfileCheck my-profiles\my-pad.json
+HIDMaestroProfileCheck --cost my-profiles
 ```
 
-**Data flows:**
-- **DirectInput** ← HID READ_REPORT ← shared memory (combined Z + Vx/Vy in descriptor)
-- **XInput** ← XUSB GET_STATE ← companion reads GipData from shared memory
-- **SDL3** ← HIDAPI skips (&IG_) → RawInput fallback → maps by VID/PID
-- **Browser (plain HID / Xbox Series BT)** ← WGI Gamepad ← GameInput reads Vx/Vy via registry mapping
-- **Browser (Xbox 360 Wired)** ← WGI Gamepad ← XUSB companion's interface, admitted via the xinputhid UpperFilter tripwire. Chromium `put_Vibration` dispatches `IOCTL_XUSB_SET_STATE` with motor bytes back through this path, where the SDK raises `OutputReceived` to the consumer.
-- **Bluetooth ID**: HIDAPI checks CompatibleIDs, reports bus_type=BT
+It exits 0 when every named file loads clean, 1 when one has an issue or a measurement fails, and 2 on a usage error. `--cost` measures each of the file's report programs and decoders on the interpreter, a profile from outside the catalog's path, 30 launches with p50 and p95, and `--register name=value` starts a protocol register at a value of its own.
 
-## Getting Started
+## Keyboards and mice.
 
-Requirements: Visual Studio 2022+, Windows SDK/WDK 10.0.26100.0, .NET 10
+As of v1.12.0 a profile can be a keyboard or a mouse. The catalog has 51 keyboards and 52 mice from 32 vendors, each the report descriptor of a real device's keyboard or mouse interface, taken from public dumps. Windows treats them as it treats the hardware: Raw Input lists each one as its kind, a Scroll Lock pressed on a virtual keyboard turns Scroll Lock on, and the mouse moves the cursor.
 
-```bash
-# On a fresh clone, build the native driver + companion + SDK together.
-# This runs scripts\build.cmd, scripts\build_companion.cmd, and a two-
-# phase dotnet build so the driver binaries get embedded in the SDK DLL.
-# One command, idempotent — re-run any time you touch driver/ or sdk/.
-scripts\build_all.cmd
+```csharp
+using var mouse = ctx.CreateController(ctx.GetProfile("logitech-g502-hero")!, "mouse-1");
+mouse.SubmitMouse(new HMMouseState { X = 25, Y = -10, Buttons = HMMouseButtons.Left });
+mouse.SubmitMouse(new HMMouseState());
 
-# Smallest possible SDK consumer (after build_all.cmd)
-dotnet run --project example\SdkDemo
-
-# Full test app (self-contained: cert + build + sign + install all automatic)
-cd test
-dotnet build
-bin\Release\net10.0-windows10.0.26100.0\win-x64\HIDMaestroTest.exe emulate xbox-360-wired
-
-# Multiple controllers at once (up to 6 verified, any mix of profiles)
-HIDMaestroTest.exe emulate xbox-series-xs-bt xbox-series-xs-bt xbox-360-wired dualsense
-
-# Interactive commands during emulation:
-#   remove 2              dispose controller 2 (others stay live)
-#   2 dualsense           live-swap controller 2 to a DualSense
-#   mark / unmark         toggle static-button diagnostic mode
-#   pause / resume        idle CPU test (driver should use ~0%)
-#   quit                  graceful shutdown
-
-# List available profiles (225 across 32 vendors)
-HIDMaestroTest.exe list
-
-# Search profiles
-HIDMaestroTest.exe search thrustmaster
-
-# Validate all APIs (XInput, DirectInput, HIDAPI/SDL3, browser, WGI, HID order)
-python scripts\verify.py --controllers 4
-
-# Cross-API ordering diagnostic with correct open-then-trigger semantics
-build\multipad_check.exe --trigger --expected 4
+using var keyboard = ctx.CreateController(ctx.GetProfile("keychron-q6")!);
+keyboard.SubmitKeyboard(HMKeyModifiers.LeftShift, new[] { HMKey.A });
+keyboard.SubmitKeyboard(HMKeyModifiers.None, ReadOnlySpan<HMKey>.Empty);
 ```
 
-The test app is fully self-contained. On first run it:
-1. Creates a locally trusted self-signed certificate (if needed)
-2. Extracts pre-built driver DLLs from the SDK assembly
-3. Signs everything
-4. Installs driver packages
-5. Creates the virtual controller(s)
-6. Starts feeding test input data (time-varying pattern by default)
+- **Every report arrives.** A gamepad reports state, so only the newest report matters. A mouse reports movement, which adds up, and a keyboard reports presses and releases, which must all arrive. For keyboards and mice the driver confirms each report Windows has taken, and the SDK sends the next only after that, at most one per millisecond, as a full-speed USB device would. A burst of 600 one-count moves lost nothing, and neither did four mice driven from four threads at 250 Hz each. With every core busy, four mice each sending as fast as the SDK allows, one report a millisecond, delivered every report, in order.
+- **The descriptor decides the layout.** `SubmitMouse`, `SubmitKeyboard` and `SubmitConsumer` pack into whatever reports the profile declares, with or without report IDs. A movement larger than the descriptor's field is split across reports.
+- **Buttons past five.** Raw Input's mouse report carries five buttons. A mouse built with `HidDescriptorBuilder.VendorButtons` gets a second collection for the rest, which Raw Input lists as a HID device of its own.
+- **Absolute pointers.** `HidDescriptorBuilder.Mouse(absolute: true)` builds a pointer that takes 0 to 32767 and reaches Raw Input flagged `MOUSE_MOVE_ABSOLUTE`.
+- **Keyboard LEDs.** Windows sends a keyboard its Num Lock, Caps Lock and Scroll Lock state when it arrives and on every change. `KeyboardLedsChanged` reports each change and `KeyboardLeds` holds the latest, including the state sent while `CreateController` was still running.
+- **Stable paths.** Four mice with one VID and PID are four Raw Input devices, and each identity key gets the same device path back on every life.
+- **Nothing stays held.** If the consuming process ends with a key or button down, however it ends, the driver lets go of it. Without that, Windows would repeat a held key until the device was removed. `Dispose` sends the same release first. A consumer that exits normally without disposing has its devices removed as it exits, and the next sweep of any program removes what a killed one left, keyboards included.
 
-No external scripts, no manual setup, no popups. Just the one console window. Requires elevation (administrator privileges).
+`HidDescriptorBuilder` builds them from scratch with the `Mouse`, `Keyboard`, `KeyboardNkro`, `ConsumerControl` and `VendorButtons` starters. Battery scenarios S69 and S70 check the descriptors and packers, then every catalog keyboard and mouse through Raw Input. [How this works](docs/INTERNALS.md#keyboards-and-mice).
 
-### Live-swap regression battery
+---
 
-`test/regression/swap_regression.ps1` is a 37-scenario battery that drives the test app through every interesting create / live-swap / remove / force-kill sequence, the HID PID 1.0 force-feedback round-trip, the high-resolution hat encoder, the Sony BT Report 0x31 vendor-blob encode/decode round-trip across all DS4/DS5 BT profiles, and the v1.3.5 `HMGamepadState` Sony-surface assertions (touchpad, IMU, battery, audio block, DS4 BT armOn IDs, DS5 Edge `activeProfile` `inputDefaults` overlay), and verifies no PnP devnodes are left in the `PRESENT` state after each one. Covers all controller archetypes the catalog exercises (Xbox 360 Wired, Xbox Series Bluetooth, Xbox One BT, Xbox Elite v2 BT, DualSense, DualSense Edge, DualSense BT, DualShock 4 BT, Switch Pro, plus a runtime-built custom profile authored via `HMProfileBuilder` + `HidDescriptorBuilder`).
+## Programs side by side.
 
-The harness sync is event-driven: the test app emits `[ACK]` on stdout after each stdin command finishes processing, and the harness blocks on that marker. No time-based settle, no scaling — every wait lasts exactly as long as the SDK actually takes. Run from an elevated PowerShell:
+As of v2.0.0 two or more programs that embed HIDMaestro run on one machine without touching each other's controllers, drivers or files. Before this, every machine-wide name was keyed by a controller index that each program numbered for itself, so two programs that each created a first controller wrote the same sections and registry keys, and a driver deploy or a cleanup in one removed what the other was using.
 
-```powershell
-./test/regression/swap_regression.ps1                # full battery, ~16 min on Ryzen-class
-./test/regression/swap_regression.ps1 -Filter 'S08*' # one scenario, ~1-2 min
+### Claims and the transport index
+
+A program takes an ownership claim before its first machine-wide write. The claim is a named pipe, `\\.\pipe\ProtectedPrefix\Administrators\HIDMaestro.Owner.<id>`, created with `FILE_FLAG_FIRST_PIPE_INSTANCE` and one instance. Only a process with Administrators enabled can create a pipe under that prefix, so a program that is not elevated cannot take a claim first, and a process that is not elevated gets `UnauthorizedAccessException` at its first create. A second claimant fails on the same call that would have won, and Windows deletes the pipe when the program ends, however it ends. A record under `HKLM\SOFTWARE\HIDMaestroOwners` names the program, its image path, its SDK version and its controllers, and stays until the program exits.
+
+Each controller claims a transport index, `HIDMaestro.Index.<N>`, and an identity, `HIDMaestro.Identity.<token>`, under the same prefix for its life. The transport index names the controller's shared sections, events, owner pipe and registry key, and it is the `ControllerIndex` the driver reads. `CreateController` still numbers controllers by slot within a context. The transport index is the slot when no one else on the machine holds that number, and the lowest free number otherwise. A program running alone therefore gets the numbers it always got, and two programs that each create a first controller get indices 0 and 1. While a program built on v1.12.0 runs, the search starts at 64 instead, because that program's next create takes the lowest index free among its own controllers and would replace a device of this program's there. A keyless controller's paths and container id, every controller's HID serial and MAC bytes, and a keyless composite's USB serial move with the index, and a create with the key `index:N`, N below 64, takes index N's default identity as asked, which that program's next create on index N replaces as its own. A number is free when its claim can be created, no process holds v1.12.0's owner pipe for it, none of its sections and events was made by another program, no present HIDMaestro device records it, and no import of an older SDK's USB/IP server uses it. When none of 4096 numbers is free, the create throws `HMResourceInUseException`, and its message names what another program made when it found one.
+
+`HMController.TransportIndex` is the number and `HMController.SectionNames` lists the names of the controller's sections. A native writer that opens the sections without the SDK reads the names there or computes them from `TransportIndex`. A keyless controller derives its identity from its transport index, so when another program holds index 0 it lands on another index and another identity. When another program's sweep holds the index's identity while it removes what a dead program left, a keyless create waits up to 120 seconds for it, as a keyed create does, and keeps its index. Pass an identity key for paths that stay the same between runs.
+
+### Identity claims
+
+Asking for an identity key that a running program holds throws `HMResourceInUseException`, derived from `InvalidOperationException`. Its message and its `OwnerProcessId`, `OwnerImagePath` and `OwnerSdkVersion` name the holder, and the holder's devices see no PnP activity. The check covers two contexts in one process too. While no running program's record lists the identity, a keyed create waits up to 120 seconds for the claim, since another program's sweep holds it while it removes a dead program's device of that identity. A v1.12.0 program takes no identity claim, so when a present device carries the identity, the create refuses the same way while that device's v1.12.0 program runs. A create is also refused when a device with the same `ParentIdPrefix` belongs to a running program or to an owner the SDK cannot determine, because the SDK never lets two parents share a prefix. The message names the device. For a device whose owner cannot be determined it also names the cleanup call that removes it.
+
+### Sweeps and cleanup
+
+A sweep removes a device only on proof that its owner is gone. The SDK reads the records and the present HIDMaestro devices and decides who owns what. A device in a record whose claim is gone is removed. A device in a live record is left alone, the caller's own included. A device with no record is judged by v1.12.0's signs. Any program can create v1.12.0's owner pipe name, so this release's driver asks Windows which process serves the pipe and records it under the device's key: while that process runs, the device's program is running. With the pipe gone, or served by a process other than the one the driver watched, and the `Global\HIDMaestroInputAck<N>` section present, the program has exited and the device is removed. A device with neither sign came from a program older than v1.12.0, which leaves no trace of whether it still runs, so no sweep removes it on a guess. Only the `Everything` cleanup and a create that asks for that device's own identity key remove it. A USB/IP import is matched by the server port its program's record names, and an import whose port has no listener on loopback is detached by that port and its bus id. The re-attach attempts usbip-win2 keeps for a dead server's composites are canceled, and never one a running program's server exports.
+
+`InstallDriver`, the session cleanup and `RemoveAllVirtualControllers()` act on the devices of exited programs only, and the cleanup overloads also remove the GameInput tables v1.11.0 left, except one whose VID and PID a present device or a controller configuration still names. With `preserveInstall: false` the default overloads remove the driver packages only while no other program runs, no device remains and the caller has no controller, and in a process that is not elevated both do nothing. `RemoveAllVirtualControllers(HMCleanupScope.Everything, preserveInstall)` removes every HIDMaestro device and import on the machine, whoever owns it, which is what `HIDMaestroTest cleanup` does. With `preserveInstall: false` it then removes the driver packages and `HKLM\SOFTWARE\HIDMaestro` with no such check. A controller the calling program still holds is left with no device: its submits return and reach nothing, its output events stop, `DriverVersion` is null, `DeliversEveryReport` and `ReleasesOnConsumerExit` are false, and it keeps its transport index until the program disposes it. Another running program's controllers lose their devices too, but keep reading the removed driver's state, and their keyboard, mouse and protocol sends keep waiting for deliveries that never come.
+
+A program that exits normally without disposing its controllers has them removed by the SDK's own exit handler. It waits at most 10 seconds for the program's phantom cleanup and for a create still in flight, then removes the devices to the end, as `Dispose` does. When that wait runs out, or a device does not leave, the devices stay in the program's record and stay present until a program built on this release next sweeps, and a killed program's devices go the same way. The wait runs out when a create of the program still holds on at 10 seconds, on another thread or waiting for another program's sweep, when one phantom uninstall of the cleanup lasts longer, or, under .NET, when a thread inside a create calls `Environment.Exit`. Each removal also waits for the machine-wide lock that programs on this release hold while they register or remove a device, and only for what is left of those 10 seconds, counting only the time another program holds it, so another program holding it longer leaves the devices the same way. A program that disposes its controllers or calls the cleanup from its own exit handler waits for another program's hold of that lock within one 10-second budget too, while its own removals take the lock in turn without counting, unless one of them holds it longer than the whole 10 seconds, which refuses the removal queued behind it as if that hold were stuck. A controller whose removal that cuts short stays in the program's record. The runtime runs exit handlers in the order they were added, and the SDK adds its own at the program's first create, `InstallDriver` or cleanup. When the program added its handler before that, the SDK's handler runs next and removes such a controller within its own 10 seconds. When the program added its handler later, when another program still holds the lock after those 10 seconds, or when the SDK was loaded in a load context that unloads, the next sweep of a program built on this release removes it.
+
+The records Windows keeps of removed devices go with a background cleanup once per process, started by the first of `InstallDriver`, the first create and `RemoveAllVirtualControllers()`. The call that starts it returns without waiting for it to end, and a later call removes none. While it runs, a create in the program and the `Everything` cleanup wait for it to end: one pass over the phantoms, their uninstalls, at most 5 seconds of waiting in all, for Windows to let them go and for the machine-wide lock, and two passes over interface registrations that wait for that lock within the same 5 seconds. When the process is already exiting, the call runs the cleanup itself before it returns, waiting at most 10 seconds for a create in flight to let it start. The SDK learns that the process is exiting from `AssemblyLoadContext.Default.Unloading`, which the runtime raises before `ProcessExit`. Under .NET it cannot learn it in a program in which no code that refers to the SDK ran or was compiled before exit began, such as one that uses the SDK only inside its own exit handler, and the cleanup then ends with the process. The next process's first cleanup removes what is left. A context dropped without `Dispose` keeps its controllers, their transport indices and their identity keys until the process exits, so a create of one of those keys in the same process is refused until then.
+
+### Driver install policy
+
+Every driver deploy holds the machine-wide deploy lock for one call and reads the installed state again once it has the lock, so of two programs calling `InstallDriver` at once, one deploys and the other finds the driver current. A call that finds the installed driver already matching skips the lock. The lock is a mutex in a private namespace that only a process with Administrators enabled can create or open, so no program that is not elevated can hold it. The installed version is the newest `DriverVer` among the `hidmaestro.inf` packages in the driver store, compared by release version, then build date, then build number. `HMContext.LastDriverInstall` reports what `InstallDriver` did:
+
+| Installed driver | Outcome |
+|--|--|
+| none | `Installed` |
+| this SDK's | `AlreadyCurrent` |
+| this SDK's, one of its two packages missing | `Installed`, the missing package is added |
+| newer | `KeptNewer`, never downgraded |
+| older, from 1.x or an older 2.0.0 build, nothing on it | `Upgraded`, a full deploy that removes the old packages |
+| older, devices or a create of another program on it | `Upgraded`, this build's packages added beside the old ones |
+
+The 2.0.0 driver takes precedence over every older one, and nothing is refused because another program's devices hold an older driver. The add beside it updates no present device, so those controllers keep the driver their host loaded until their device restarts, while every device a 2.0.0 program creates binds the newest package. `HMDriverVersionException` is thrown only when the driver that started a create's device does not serve this SDK's protocol 4 (`ProtocolNotServed`, a newer driver that dropped it) or could not read a value the create wrote (`ValueNotRead`), and the create removes its device.
+
+A UMDF2 `CreateController` checks the installed set under the same lock, after its record entry and before its PnP work. When the installed-payload record is the one this process last confirmed, the check ends there. Otherwise it looks for a package of each of `hidmaestro.inf` and `hidmaestro_xusb.inf` in the driver store. When one is missing, or either is older than this build's, it applies the install policy above. At the installed driver's own stamp it adds whichever of this build's packages is missing and removes nothing. With nothing on the driver it deploys in full, and over an older driver it installs this build's, whatever runs on it. A program whose packages another program uninstalled therefore gets them back at its next create, and a create can wait for another program's deploy to finish. A composite create takes a lock of its own for the usbip-win2 install instead, so a UMDF2 create never waits for it. A create of a plain HID or non-xinputhid controller installs the driver on its own device with `DiInstallDevice`, which touches no other device, so a newer SDK no longer moves another program's controller of the same profile onto its own driver. `HMController.DriverVersion` reports the driver a controller runs on, read from a per-controller version section, `Global\HIDMaestroVersion<N>`, that the SDK and the driver both write. The driver reads a controller's 2.0.0 values only when that section speaks protocol 4 and carries the tag of the devnode's own identity, so a value a killed program left never reaches a 1.x program's controller on the same index.
+
+### Registrations and removals
+
+Every devnode registration and removal a program built on this release makes holds one machine-wide lock, `HIDMaestro.Admin\Pnp`, so no such program registers a device while another removes one. A deploy's pnputil install and a create's bus type stamp hold it too. Before a registration, outside the lock, the create removes a prior life of its device and waits up to 30 seconds for Windows' pending device installs. It then takes the lock and looks once more. Every removal ends on a test: the devnode out of the tree, the record gone for an uninstall, and for a devnode that was present, Windows' DEVICEINSTANCEREMOVED notification within 2 seconds more. A HID child removed with its parent counts on the parent's notification. A removal that ends with the devnode or its record still there refuses the next registration of that id. One where only the notification is late goes ahead and is logged. Another program waits up to ten minutes for the lock, then throws `InvalidOperationException`. Programs built before v2.0.0 take no lock. USB/IP attaches and detaches, a WinUSB bind and a dispose's request that the driver fail its device run outside it. When a program refuses a `Dispose`'s removal query of a device under `ROOT`, as Safely Remove Hardware's query can be refused, `Dispose` makes that request, so Windows removes the device and its HID children by surprise removal, which no program holding a child open can veto.
+
+A create now fails when its device's prior life is still there after its removal, and when a gamepad or XUSB companion is not made, where the create used to succeed without the companion. Removals run one at a time, in a program and across programs, so disposing several controllers takes about the sum of their removals rather than the longest one. That cost has not been measured.
+
+### Staging
+
+Everything the SDK runs elevated or hands to pnputil is staged per version and per operation under `%ProgramFiles%\HIDMaestro\Staging\<version>-<hash>\<operation>`, where no program without elevation can create a folder first. Each directory is created with a security descriptor that gives access to Administrators and SYSTEM only. Before each use the SDK checks every directory on the path: no reparse point, owned by Administrators or SYSTEM, and no write right granted to anyone but them and TrustedInstaller. `%ProgramFiles%\HIDMaestro` is reset in place when SYSTEM or Administrators own it and no one else can change its permissions or delete it, and refused with `InvalidOperationException` otherwise, since it then belongs to another program. A staging directory below it that fails is moved aside to `<name>.untrusted-<guid>`, never deleted, and created again. A file is written under a temporary name, checked against its embedded SHA-256 (the pinned release hash for the usbip-win2 files), renamed into place, and held open against writes, renames and deletes from its check until the elevated step that uses it ends, with its directories held the same way. `hmswd.exe` always comes from the embedded resource. Every elevated child gets a protected TEMP, its staging directory or a folder per process under `%ProgramFiles%\HIDMaestro\childtemp`, and an elevated tool that cannot have one does not run. reg.exe and sc.exe keep the caller's TEMP. The diagnostic logs stay in `%TEMP%\HIDMaestro` and are written with the user's own rights. A deploy deletes the staging directory of every version that no running program's record names.
+
+The OpenVR driver stays in `%ProgramData%\HIDMaestro\openvr\hidmaestro`, the one path SteamVR has registered for it since v1.6.0. A program without elevation that creates one of those folders first and holds a file in it can make `HMVR.EnsureDriverRegistered` refuse with `InvalidOperationException` naming the folder, and so can a program holding a folder there open while the driver files are written. Neither can make a staging refuse.
+
+### Programs built on 1.x
+
+Programs built on HIDMaestro 1.x must move to 2.0.0. A 2.0.0 program takes precedence over them: it installs its driver over any older one, whatever runs on it, and refuses nothing because a 1.x program is in the way. Its sweeps still never remove the controllers of a running v1.12.0 program, which they recognize by its owner pipes and by what the driver records about them. A 1.x program's running controllers keep the driver they loaded until their device restarts. A 1.x create installs its own driver package on its device with `UpdateDriverForPlugAndPlayDevices`, which Windows applies to every present device of that hardware ID. On the 2.0.0 driver a 1.x controller keeps its input and output and loses the device behavior 1.x kept in its driver, which 2.0.0 serves only for a 2.0.0 SDK's controller: a Sony profile's calibration, pairing and firmware replies, and a Bluetooth DualSense or DualShock 4's extended report, the Switch Pro's handshake and stream, the DualShock 3's sixaxis form, and XInput through the XUSB companion.
+
+A 1.x program makes no such promise. A running v1.12.0 program's `InstallDriver` and its first create in a session each remove every HIDMaestro device on the machine, 2.0.0 controllers included, and its `InstallDriver` replaces the installed driver with its own whenever the payload differs. Every older program does the same. A v1.12.0 program with no controller present leaves no sign, so its next create can take a 2.0.0 program's low index, and its `CreateControllerAt(index)` takes whatever index it is given. A v1.12.0 program whose device's index cannot be read is found by the registry ledger entry each of its creates writes, except one that runs only keyboards and mice. Moving every program on the machine to 2.0.0 is the fix.
+
+Battery scenario S71 runs programs side by side, with peers built on v1.12.0 and v1.11.0, and S72 checks the staging. [How this works](docs/design/coexistence.md).
+
+---
+
+## Removing HIDMaestro.
+
+As of 2.0.1 HIDMaestro removes itself from a computer: every virtual controller and its device records, the driver packages, the signing certificate, its registry keys and files, its OpenVR registration and its OEM name overrides, with the shared Windows keys it changed put back. `HIDMaestroUninstall.exe`, in the release ZIP for x64 and ARM64, does it from a prompt or an installer:
+
+```
+HIDMaestroUninstall [--preview] [--yes] [--include-usbip] [--json]
 ```
 
-Exit code 0 if every scenario passed, 1 if any failed. Useful before tagging a release: catches the `SwDeviceLifetimeParentPresent` resurrection class of bugs and any future regression in the live-swap teardown path. Validated 37/37 PASS on a Ryzen 9955HX3D dev box (Win11 26200, ~11 min wall time) and on an Intel Atom Z8350 fixture (Win10 IoT LTSC 19044, ~20 min at `HIDMAESTRO_TIMEOUT_SCALE=2`) — the slow-hardware result is the reason the harness is pure ACK-driven instead of fixed-sleep timed.
+A program that embeds HIDMaestro does the same with `HMUninstall.Preview()` and `HMUninstall.Run()`, from its own uninstaller or a settings button. The driver is shared by every HIDMaestro program on the machine, so a removal refuses while another one runs and lists it. A program on 2.0.1 or later that starts during a removal waits for it to end, and an older one that starts then stops it. The others install the driver again at their next `InstallDriver` or create. usbip-win2's host controller goes when HIDMaestro's install record shows HIDMaestro installed it and nothing else uses it, and `--include-usbip` also takes what usbip-win2's own installer left, its root-hub filter included. Taking the filter off restarts every USB 3 root hub, so USB devices disconnect for a moment. Files in each account's `%TEMP%` and `%ProgramData%` are deleted from the profile or `%ProgramData%` down without following a link. [What is removed and what stays](docs/UNINSTALL.md).
 
-## Profile System
+Battery scenario S101 checks that a preview changes nothing, and removes HIDMaestro inside Windows Sandbox, a composite controller included, and checks that nothing but the items the report keeps is left, that planted junctions are not followed, that a file in use waits for the next start only inside `%ProgramFiles%\HIDMaestro`, and that a program started during the removal waits for it to end and then keeps its controller.
 
-Controller profiles are JSON files in `profiles/`:
+---
 
-```json
-{
-  "id": "xbox-360-wired",
-  "name": "Xbox 360 Controller (Wired)",
-  "vid": "0x045E",
-  "pid": "0x028E",
-  "productString": "Controller (XBOX 360 For Windows)",
-  "descriptor": "05010905a101a100093009311500...",
-  "inputReportSize": 18,
-  "triggerMode": "combined",
-  "connection": "usb"
-}
-```
+## NativeAOT, trimmed and single-file apps.
 
-The descriptor field contains the raw HID report descriptor as hex. The test app parses it, builds input reports, and feeds data through shared memory. Adding a new controller is a matter of capturing its descriptor and writing a JSON file.
+As of v2.0.0 `HIDMaestro.Core` publishes as NativeAOT and as a trimmed single-file app, for x64 and ARM64. Profiles and layouts load through `HMJsonContext`, a source-generated `JsonSerializerContext` with no reflection behind it, and every Win32 declaration is `LibraryImport`. `hmswd.exe` comes from the embedded resource and never from beside the assembly, whose location is empty in a single-file app. The project sets `IsAotCompatible`, and the trim, single-file and AOT analyzers report as errors in a Release build.
 
-## Validation Results
+`HMLayoutJsonOptions.Default` is now the source-generated context's options, so it is read-only and reads and writes the SDK's own types only. Code that changed a setting on it throws `InvalidOperationException`. Copy it with `new JsonSerializerOptions(HMLayoutJsonOptions.Default)` to change a copy.
 
-Tested on Windows 11 IoT Enterprise LTSC 2024 (build 26200) with a locally generated self-signed certificate added to the machine's Root and TrustedPublisher stores (no `bcdedit /set testsigning` required). Each profile was deployed via the test app and validated with `scripts/verify.py` plus manual verification in joy.cpl, PadForge/SDL3, Chrome Gamepad API, and XInput state readers.
+Battery scenarios S74 and S75 publish one app four ways, NativeAOT and trimmed single-file for x64 and ARM64, and run the two for the machine's architecture. Each app loads the catalog, installs the driver, creates `dualshock-4-v2` on the UMDF2 driver and `dualsense-composite` on USB/IP, submits input, waits for an output report and disposes. S76 requires the source-generated parse to read every embedded profile to the same contents as v1.12.0's reflection-based parse. At v1.12.0 both kinds of app load 0 of 336 profiles, because reflection-based JSON is off in them.
 
-Multi-controller verified with 6 simultaneous mixed controllers (2x Xbox Series BT + 2x Xbox 360 Wired + 2x DualSense): all 6 APIs report correct per-controller identity and ordering. Real Microsoft Xbox Series X|S BT controller tested side-by-side: virtual and real exhibit byte-identical behavior across all HID class APIs.
+Process start to catalog loaded, 30 runs on the development laptop:
 
-### Summary
+| | p50 | p95 |
+|--|--|--|
+| JIT | 168.4 ms | 174.1 ms |
+| NativeAOT | 17.0 ms | 17.9 ms |
+| Trimmed single-file | 345.6 ms | 350.4 ms |
+
+Trimming drops the framework's precompiled code, which is why the trimmed single-file app starts slowest.
+
+---
+
+## Every API at once.
+
+DirectInput, XInput, SDL3, the browser Gamepad API, and WGI/GameInput all see one correct device.
+
+- **One device, every API.** DirectInput sees correct axes and buttons. XInput sees separate triggers in one slot. SDL3/HIDAPI sees the right identity and bus type. The browser sees a STANDARD GAMEPAD with separate triggers. WGI sees one Gamepad. [How this works](docs/INTERNALS.md#techniques).
+- **Multiple controllers at once.** No hard limit. Verified with 6 mixed controllers, correct per-controller ordering across all APIs. XInput caps Xbox-family profiles at its own 4 slots.
+- **Force feedback.** HID PID 1.0 answers for DirectInput FFB games, plus rumble/haptic output events the consumer routes to real hardware.
+- **Reports at rest, as the hardware sends them.** A device that reports on its own clock repeats its last frame at rest: 21 catalog profiles, the DualSense and DualShock 4 families, the Steam personas, OpenFFBoard and five Thrustmaster wheels, each at its real period, from 1 ms to 250 ms. A profile's `stream` key sets it.
+- **Hot-plug.** Create and remove controllers with no reboot. Live-swap a controller's profile mid-session. A warm single-controller create takes about 220 ms: a DualShock 4 in 217 ms at the median of 30, against 467 ms on v1.12.0 on the same machine.
+- **A throwing handler stays contained.** An exception a handler throws on one of the SDK's own threads is dropped and the next handler runs. The nine events covered are `OutputReceived`, `OutputDecoded` and `KeyboardLedsChanged`, a port's `OutputChanged`, the USB audio events and `HapticReceived`. Set `HIDMAESTRO_DIAG=1` to log each dropped exception.
+- **Validated across every API and both ends of the spectrum.** A 100-scenario regression battery checks DirectInput, XInput, SDL3/HIDAPI, the browser Gamepad API, WGI and Raw Input on every change. It runs on the development laptop, a 16-core Lenovo Legion Pro 7 on Windows 11, and on a 4-core Intel Celeron Windows 10 mini PC, with the latest results under the battery below.
+
+### Validation
+
+Tested on Windows 11 IoT Enterprise LTSC 2024 (build 26200) and Windows 10 IoT Enterprise LTSC (build 19044), with a self-signed certificate in the machine's Root and TrustedPublisher stores and no test-signing boot mode. Every profile is checked across all the input APIs a game can reach: DirectInput (joy.cpl and DirectInput8), XInput, SDL3/HIDAPI, the Chrome Gamepad API, WGI/GameInput, and HID enumeration order, through `scripts/verify.py` plus manual verification. A real Xbox Series X|S Bluetooth controller tested side by side shows byte-identical behavior across the HID class APIs.
 
 | Profile | DirectInput | XInput | SDL3 | Browser | WGI |
-|---------|------------|--------|------|---------|-----|
-| Xbox 360 Wired | 5 axes, 10 btns | 1 slot, separate triggers, Guide (Ex) | &IG_ path, USB | STANDARD GAMEPAD, separate | 1 interface |
-| Xbox Series BT | 5 axes, 16 btns (+ Share at btn 12) | 1 slot, separate triggers, Guide (Ex) | &IG_ path, Bluetooth | STANDARD GAMEPAD, separate | 1+ interfaces |
+|--|--|--|--|--|--|
+| Xbox 360 Wired | 5 axes, 10 btns | 1 slot, separate triggers | &IG_ path, USB | STANDARD GAMEPAD | 1 entry |
+| Xbox Series BT | 5 axes, 16 btns | 1 slot, separate triggers | &IG_ path, Bluetooth | STANDARD GAMEPAD | 1 entry |
 | DualSense (PS5) | 6 axes, 15 btns | N/A | USB | Detected | N/A |
-| **6-controller mixed** | **All 6 visible** | **4 slots (XInput cap)** | **4 IG + 2 live** | **4 pads (Chromium cap)** | **All 6 visible** |
+| 6-controller mixed | All 6 visible | 4 slots (XInput cap) | 4 IG + 2 live | 4 pads (Chrome cap) | All 6 visible |
 
-### Xbox 360 Controller (Wired)
+The Xbox Series BT row shows 16 buttons because Windows' `xinputhid` synthesizes a 16-button layout over the 12-button source descriptor. [Details](docs/INTERNALS.md#validation-results).
 
-| Check | Result |
-|-------|--------|
-| DirectInput axes | 5 (X, Y, Rx, Ry, Z combined) |
-| DirectInput buttons | 10 |
-| DirectInput VID:PID | 045E:028E |
-| XInput slots | 1, contiguously allocated (no slot-1-skip — see Techniques: SWD Migration) |
-| XInput triggers | Separate (LT and RT independent) |
-| XInput Guide | Reachable via `XInputGetStateEx` as `XINPUT_GAMEPAD_GUIDE` (0x0400). The XUSB companion packs `HMButton.Guide` into GIP `btnHigh` bit 0x40 and unpacks it back into `wButtons` in `IOCTL_XUSB_GET_STATE`. xinputhid does not apply to the 360 profile, so the companion path carries it. |
-| SDL3/HIDAPI | Detected via XInput, &IG_ path |
-| Browser Gamepad | "Xbox 360 Controller (XInput STANDARD GAMEPAD)" |
-| Browser triggers | Separate (via Vx/Vy + GameInput mapping) |
-| Browser vibration | Chromium `put_Vibration` dispatches `IOCTL_XUSB_SET_STATE` to the XUSB companion via the xinputhid UpperFilter tripwire (WGI's XUSB path). The SDK raises `OutputReceived` to the consumer; forwarding to physical hardware is the consumer's job. |
-| WGI Gamepad | One entry, XUSB-backed through the SWD-enumerated companion |
-| Duplicates | None |
+A 100-scenario [regression battery](test/regression/regression_battery.ps1) drives every create / swap / remove / force-kill sequence, the FFB round-trip, the Sony vendor-blob encode/decode, the composite USB personas end to end through the real USB stack, the battery reply a pad gives XInput, the device identity of every family across nine lives, the driver catalog for both architectures, the 2026 Steam Controller persona against Steam's own firmware updater, the DualShock 3 and 4 reports against SDL, Linux and RPCS3, the Switch 2 Pro Controller persona against a capture of a real pad, SDL and the Steam client, the Switch Pro Controller against SDL3's Bluetooth init and a real pad's idle stream, the registry keys a virtual shares with real devices, what WGI reads from a virtual pad, every keyboard and mouse through Raw Input, programs side by side with peers built on v1.12.0 and v1.11.0, NativeAOT and single-file apps, and the Wii U GameCube adapter against Dolphin, Slippi and SDL, the device code against recordings of the code it replaces, every report program three ways, the protocol engine and device clock, profiles and models as data, the version contract on the live driver, a Joy-Con built from the Switch Pro's mechanisms, every raw value back through the SDK, and descriptors against the captures they come from, and removing HIDMaestro from a machine, verifying no PnP devnodes are left behind. On the development laptop, a Lenovo Legion Pro 7 16AFR10H with a 16-core AMD Ryzen 9 9955HX3D, 64 GB of DDR5-5600 and an NVIDIA GeForce RTX 5080 Laptop GPU on Windows 11 build 26200, the 2.0.2 release build passed all 100 scenarios in 33 minutes. On a 4-core Intel Celeron J4125 Windows 10 mini PC, the low end of the performance and OS spectrum, 96 passed and 4 skipped in 39 minutes, leaving out the checks that need a Steam client, a desktop session or Windows Sandbox.
 
-### Xbox Series X|S Controller (Bluetooth)
+Full device-tree dumps, HIDAPI enumeration logs, per-profile results, and startup/teardown timing are in [docs/INTERNALS.md](docs/INTERNALS.md#validation-results).
 
-| Check | Result |
-|-------|--------|
-| DirectInput axes | 5 |
-| DirectInput buttons | 16 (Win11 xinputhid synthesis over a 12-button source descriptor) |
-| DirectInput VID:PID | 045E:0B13 |
-| XInput slots | 1 |
-| XInput triggers | Separate |
-| XInput Guide | Reachable via `XInputGetStateEx` as `XINPUT_GAMEPAD_GUIDE` (0x0400). Routed through the System Main Menu HID usage; xinputhid forwards it natively, so this works on every Series/One/Elite BT+USB profile that shares the GIP descriptor. |
-| Share button | Present in the source descriptor at button 12 (`HMButton.Share`). Visible through xinputhid's 16-button layout; exposed as a plain discrete button rather than a Consumer Page Record so consumers can layer macros on it. |
-| SDL3/HIDAPI | bus_type = Bluetooth |
-| BTHLEDEVICE spoof | Confirmed (HIDAPI bus_type=2) |
-| Browser Gamepad | Detected, separate triggers |
-| WGI Gamepad | One entry, HID-backed. xinputhid.sys binds on the HID child (the real one, not the registry-string tripwire) and drives WGI admission natively. |
-| Duplicates | None |
+<details>
+<summary><b>Xbox Series X|S BT, Xbox 360 Wired, and DualSense across Device Manager, joy.cpl, Chrome Gamepad Tester, and PadForge/SDL3</b></summary>
 
-### Screenshots
-
-**Xbox Series X|S Bluetooth** in Device Manager, joy.cpl, Chrome Gamepad Tester, PadForge/SDL3:
 ![Xbox Series BT across all tools](docs/screenshot-xbox-series-bt.png)
-
-**Xbox 360 Wired** in Device Manager, joy.cpl, Chrome Gamepad Tester, PadForge/SDL3:
 ![Xbox 360 Wired across all tools](docs/screenshot-xbox-360-wired.png)
-
-**DualSense (PS5)** in Device Manager, joy.cpl, Chrome Gamepad Tester, PadForge/SDL3:
 ![DualSense across all tools](docs/screenshot-dualsense.png)
 
-### Tool Output Logs
-
-<details>
-<summary>HIDAPI enumeration: Xbox 360 Wired (click to expand)</summary>
-
-```
-VID=0x045E PID=0x028E
-  Product: Controller (XBOX 360 For Windows)
-  Usage: page=0x0001 usage=0x0005
-  Bus type: 1 (USB)
-  Path: \\?\HID#VID_045E&PID_028E&IG_00#...
-  &IG_ in path: True
-```
 </details>
 
-<details>
-<summary>HIDAPI enumeration: Xbox Series BT (click to expand)</summary>
+---
 
-```
-VID=0x045E PID=0x0B13
-  Product: HID-compliant game controller
-  Bus type: 2 (Bluetooth)
-  &IG_ in path: True
-```
-</details>
+## Latency: lower, measured.
 
-<details>
-<summary>XInput state: Xbox 360 Wired (click to expand)</summary>
+- **Lower latency, measured.** ~35 µs median single-press, more than 4x faster than the closest alternative, with no batching cap on input. Output (rumble, FFB, LED) is event-driven as of #34: ~0.15 ms median from the game's write to the consumer callback, down from the 9.4 ms poll-quantized path, and idle controllers cost zero measurable CPU.
+- **No network in the path.** Input travels through shared memory on the same machine. There is no socket, no USBIP stack, and no kernel transport driver between your application and the device.
+- **Fast to start, fast to recover.** When the installed driver already matches, `InstallDriver()` completes in ~40-60 ms and a consumer goes from process start to a live controller in 553 ms at the median of 30, against 725 ms on v1.12.0 on the same machine. If the consuming app is force-closed mid-session, the next launch evicts the orphaned devices and has the first controller live again in ~2.3 s, measured with an Xbox Series BT profile in the mix (the deepest teardown stack).
 
-```
-Slot 0: Connected  LT=87 RT=87 LX=3080 LY=29988 Buttons=0x1000
-Slot 1: Not connected
-Slot 2: Not connected
-Slot 3: Not connected
-```
-</details>
+Measured input latency from `SubmitState` to the input surfacing through XInput, single button press, 10,000 iterations on the same host:
 
-<details>
-<summary>PnP device tree: Xbox 360 Wired (click to expand)</summary>
+| | Single-press latency |
+|--|--|
+| **HIDMaestro** (measured) | **~35 µs median, worst case under 1 ms** |
+| VIIPER (their published Windows figure) | 168 µs |
 
-```
-Status Class    FriendlyName                  InstanceId
------- -----    ------------                  ----------
-OK     HIDClass Game Controller               ROOT\VID_045E&PID_028E&IG_00\0000
-OK     System   HIDMaestro XInput Companion   SWD\HIDMAESTRO\A7B4_0002
-OK     HIDClass HID-compliant game controller HID\VID_045E&PID_028E&IG_00\...
-```
+Reproduce it yourself: `HIDMaestroTest.exe latency xbox-360-wired`. The harness shares one clock between the writer and the reader and detects the actual button bit changing, so the number is real propagation, not poll quantization. Full methodology and per-run numbers: [docs/testing/latency.md](docs/testing/latency.md).
 
-The `A7B4` prefix on the companion's instance-id suffix is the parent process's PID in hex, applied per-launch to bypass Windows PnP's sticky per-container fast-path. See Techniques: Session-Unique Instance-ID Suffix.
-</details>
+HIDMaestro talks to its driver through a shared-memory section on the same machine. There is no socket and no network stack in the path. Both directions are event-driven: each `SubmitState` signals the driver immediately with no fixed batching interval, and the driver signals each captured output packet (rumble, FFB, LED) back to the consumer at ~0.15 ms median instead of the pre-#34 8 ms poll. Idle controllers cost zero measurable CPU. Output methodology and before/after numbers: [docs/testing/latency.md](docs/testing/latency.md).
+
+![Input latency, lower is better: HIDMaestro 0.035 ms versus VIIPER at 0.168 ms localhost, 1-5 ms over wired LAN, and 10-50 ms over Wi-Fi](docs/latency-chart.svg)
+
+The network bars above use the optimistic end of each LAN range. Even granting VIIPER the best case, its Wi-Fi path is hundreds of times longer than HIDMaestro's shared-memory path.
 
 <details>
-<summary>XUSB companion device interfaces + UpperFilters (click to expand)</summary>
+<summary><b>A note on the comparison, and the layering question</b></summary>
 
-```
-XUSB Interface:
-  Path:   \\?\SWD#HIDMAESTRO#A7B4_0002#{ec87f1e3-c13b-4100-b5f7-8b84d54260cb}
-  Device: SWD\HIDMAESTRO\A7B4_0002
-  Status: Enabled
+A note on the comparison. VIIPER is "Virtual Input **over IP**", built on USBIP and driven over a TCP API or an in-process library. Its sub-millisecond figures are measured over **localhost only**. Its own benchmark doc says so plainly: "remote/network USBIP attachment will add network RTT and jitter which is intentionally excluded from these baseline figures." Round-trip time there is how long an input takes to travel to another machine and come back, and jitter is how much that delay varies from moment to moment. The headline latency excludes the network path the project is named for, and VIIPER batches reports every millisecond, capping the update rate at 1000 Hz.
 
-Registry:
-  HKLM\SYSTEM\CurrentControlSet\Enum\SWD\HIDMAESTRO\A7B4_0002
-    UpperFilters = "xinputhid"       ← WGI dispatch tripwire (INF-written)
-    DEVPKEY_Device_ContainerId = {48494430-4D41-4553-5452-4F0000000002}
-                                     ← explicit per-controller GUID via
-                                       SwDeviceCreate's pContainerId,
-                                       shared with the main HID device
+The moment you run it over an actual network, that excluded round-trip time dominates: roughly 1 to 5 ms added over wired LAN, and 10 to 50 ms over Wi-Fi, on top of the localhost figure rather than instead of it. That is one to two orders of magnitude above the sub-millisecond number the docs lead with, and the caveat that explains the gap is a single line buried in a testing doc. Anyone who reads "well below 1 millisecond" and pictures networked play is being pointed at the wrong number.
 
-Main HID device:
-  HKLM\SYSTEM\CurrentControlSet\Enum\ROOT\VID_045E&PID_028E&IG_00\0000
-    UpperFilters = "xinputhid"       ← prevents duplicate HID-backed
-                                       WGI Gamepad (SDK-written per-instance,
-                                       only for profiles with an XUSB
-                                       companion)
-```
+There is also a layering question worth naming. Networking is a transport concern that belongs in the application, not in the virtual-device driver. Building USBIP-over-IP into the emulator puts a kernel USBIP driver and a listening socket in front of every user, including the ones who only ever drive a controller on the same machine. HIDMaestro keeps the device layer local: the SDK writes input to a shared-memory section, and nothing in the driver knows or cares whether that input came from the local process or was relayed by the consumer from another machine. If you want input over a network, that is the application's job to own and secure, without dragging a network stack and a kernel transport driver through every local use of the device. Consumers already do this at the right layer: PadForge, built on HIDMaestro, shares controllers across PCs over a network with its Remote Link feature (added in 3.4.0), both directions with feedback returning to the real device, with zero latency added for anyone playing locally.
 
-Only one device interface is registered on the XUSB companion. Publishing a second interface would create a duplicate WGI provider arrival and classifier confusion — the tripwire plus the single XUSB registration is what produces exactly one Gamepad.
+And there is the matter of what USBIP can represent at all. USB/IP transports USB, so every device VIIPER creates is a USB device to Windows. The controllers people actually use often are not: an Xbox or DualSense paired over Bluetooth enumerates as a Bluetooth device, and SDL3 and Chromium parse it through different code paths because of that bus type. A USB-only emulation reports the wrong bus for those controllers. HIDMaestro sets bus type per profile, so a Bluetooth controller presents as Bluetooth (HIDAPI reports `bus_type = Bluetooth`), matching the hardware it stands in for.
+
 </details>
 
-### Startup and Hot-Plug Timing
+---
 
-| Operation | Measured Time |
-|-----------|--------------|
-| Cold start (first run: cert + sign + install + create 1) | ~18s |
-| Warm start, single controller (drivers cached) | **~200ms** |
-| Warm start, 4 mixed controllers (2 BT + 2 Xbox 360 wired) | **~2.2-2.8s** |
-| Warm start, 6 mixed controllers (sequential) | **~3.5s** |
-| Single dispose: plain HID (DualSense, wheels, etc.) | **~80ms** |
-| Single dispose: Xbox 360 Wired (XUSB companion) | **~135 ms** (was ~5,700 ms pre-v1.3.1) |
-| Single dispose: Xbox Series BT (xinputhid + SwD parent) | **~500 ms** (was ~11 s pre-v1.3.1) |
-| Single create: Xbox 360 Wired | **~200-700 ms** (was 5-15+ s worst-case pre-v1.3.2) |
-| Single create: Xbox Series BT | **~150-600 ms** (was 5-15+ s worst-case pre-v1.3.2) |
-| 4-controller cleanup (parallel, batch path) | ~1.5 s |
-| 6-controller mixed cleanup (sequential) | ~3-4 s |
+## Nothing in the kernel.
 
-Cold start includes certificate creation, signing, catalog generation, driver package installation, and device creation. This only happens on first run or after SDK updates. Warm start uses event-driven polled waits that exit as soon as PnP is ready. Zero fixed `Thread.Sleep` calls remain in any creation, cleanup, or finalization path. Controllers are independently disposable: removing one does not disturb the others.
+- **No kernel driver, no test-signing.** Pure user-mode UMDF2, loaded by a locally trusted self-signed certificate. No test-signing boot mode, no purchased certificate, no reboot, and a bug cannot blue-screen the machine. It installs on an ordinary user's PC, not just a developer box.
+- **No kernel driver.** UMDF2 runs the driver in a normal user-mode process. A bug cannot blue-screen the machine. Self-signed certificate trusted by the local machine is enough.
 
-**Same-boot run-to-run consistency:** every launch matches the fresh-boot Phase-1 timing. The earlier regression where subsequent same-boot runs took 65s (and lost XInput visibility for the XUSB-companion path) is fixed by the per-process session-id prefix on SWD instance-ids — see Techniques: Session-Unique Instance-ID Suffix.
+### How it works
 
-**Per-step install breakdown** (visible in stdout when `HMContext.InstallDriver` runs): extract ~20ms · remove old packages ~100ms · sign ~130ms · generate catalogs ~840ms (the largest single step, AV-sensitive) · install drivers ~580ms · total ~1.7s on a clean machine. On corporate workstations with hundreds of devices in the PnP tree, total install can stretch to 5-20s; HIDMaestro doesn't run `pnputil /scan-devices` (it's a no-op for our INFs and was the largest variable contributor).
+HIDMaestro is a UMDF2 HID minidriver hosted by Windows' own `mshidumdf.sys`, fed input through a per-controller shared-memory section. XInput for Xbox profiles comes from a companion device that registers the XUSB interface. Bluetooth identity, the &IG_ enumerator behavior, the separate-trigger descriptor trick, the WGI admission path, and the XInput slot allocator are all documented in [docs/INTERNALS.md](docs/INTERNALS.md).
 
-**Batch teardown:** `HMContext.Dispose()` and the public `DisposeControllersInParallel(controllers, perControllerCallback)` parallelize per-controller `DIF_REMOVE` work and run the system-wide HID orphan sweep once at the end instead of per-controller. With v1.3.1's SwD-first ordering the per-controller cost is already ~135–500ms, so the batch path's wall-clock benefit is now mostly avoiding the per-controller orphan-sweep duplication; for 4-6 mixed controllers the cleanup typically completes in 1.5-4s end to end. Live profile-switch (single `HMController.Dispose()` mid-session) stays synchronous because slot-allocation determinism requires the old devnode fully gone before the new one is created.
+Why user mode is enough: the HID class driver already lives in the kernel (`mshidumdf.sys`), XInput discovery uses a device interface a user-mode driver can register, GameInput reads HID reports rather than driver internals, and bus type and VID/PID are settable from user mode. See [Why UMDF2 Is Enough](docs/INTERNALS.md#why-umdf2-is-enough).
 
-**Self-healing on init:** `HMContext.InstallDriver` calls `RemoveAllVirtualControllers` first thing, so any orphans left by a prior crashed session are cleaned up before the new install runs. The same call is exposed publicly as `HMContext.RemoveAllVirtualControllers()` for consumers who want explicit defensive cleanup (e.g. on app exit). In normal operation, individual `HMController.Dispose()` is sufficient — there is no per-process cleanup obligation on shutdown.
+---
 
-### Profile Architecture Groups and Teardown Timing
+## Controller audio and haptics: composite USB personas
 
-Disposal speed depends on which kernel-side drivers are in the device stack. Each additional driver in the stack adds its own PnP query-remove handshake, handle release, and notification cascade. HIDMaestro profiles fall into three architecture groups with dramatically different teardown characteristics:
+A real USB DualSense is a four-interface composite: USB Audio Class speaker/haptics out, microphone in, and HID. UMDF2 can present exactly one HID interface, so the standard `dualsense` profile stops there. As of v1.4.0 three additional profiles present the full composite. They are the ones named **Full** in a profile picker, which is the catalog's marker for the most capable profile of a given device:
 
-#### 1. Plain HID: generic gamepads, wheels, HOTAS, flight sticks (~200ms)
+- **`dualsense-composite`**: the real pad's four interfaces, byte-for-byte from a hardware descriptor dump. The OUT stream is 4-channel 48 kHz where channels 1/2 are the speaker and channels 3/4 drive the voice-coil actuators. That stream is the only path on Windows by which a game hands a controller its authored haptic waveforms, and it surfaces on the SDK as `HMController.UsbAudio.Output` with per-channel roles. The microphone is `UsbAudio.Microphone`: feed PCM, Windows records it from a real "Headset Microphone (Wireless Controller)" endpoint.
+- **`dualsense-edge-composite`**: the Edge's four interfaces from a physical Edge's full USB probe. Same speaker/haptics stream and microphone as the base pad, the Edge's own 389-byte HID descriptor, and the Edge's real 1 ms USB input polling.
+- **`dualshock-4-v2-composite`**: the DS4 v2's composite, with headset audio and a mono microphone. The hardware has no haptics lane.
 
-Profiles where `driverMode` is not `"xinputhid"` and the VID is not Microsoft (`0x045E`). Includes DualSense, DualShock 4, all Logitech wheels, Thrustmaster HOTAS, flight sticks, pedals, arcade sticks, and most of the 224-profile catalog.
+The original DS4 v1 (054C:05C4) has no composite variant for a reason worth stating: real hardware probes show it presents a single HID interface over USB with no audio class at all. USB audio arrived with the v2.
 
-```
-ROOT\VID_054C&PID_0CE6\NNNN          ← our UMDF2 driver (mshidumdf host)
-  └─ HID\VID_054C&PID_0CE6\...       ← raw HID PDO, no upper filter
+A composite persona is a real Sony pad at every level a filter can inspect, which is what the audio class driver requires and is not negotiable. That leaves a host with nothing of its own to recognize, so the emulated host controller these personas sit behind carries a second hardware ID, `ROOT\HIDMAESTRO_UDE`, alongside its upstream one. An application that already excludes its own virtual pads by looking for `HIDMAESTRO` in a device's hardware IDs keeps working if it walks far enough up: from the persona's HID interface that node is four parents away. Nothing is added to the persona itself.
+
+That same invisibility is why cleanup has to reach the personas by a different route. The device sweep behind `RemoveAllVirtualControllers` walks the ROOT and SWD enumerators for the `HIDMAESTRO` token, and a composite carries none, so before v1.4.5 a consumer that created one and exited left a USB DualSense enumerated on the machine with nothing left running to feed it. The sweep detaches personas from the emulated host controller first, then walks the enumerators. As of v2.0.0 it detaches only the personas of programs that have exited, and `RemoveAllVirtualControllers(HMCleanupScope.Everything, preserveInstall)` detaches every one.
+
+```csharp
+using var ctrl = ctx.CreateController(ctx.GetProfile("dualsense-composite")!);
+ctrl.UsbAudio!.Output.FramesReceived += (out_, pcm) => { /* speaker + haptic PCM */ };
+ctrl.UsbAudio.Microphone.Submit(micPcm);
 ```
 
-**Lightest stack.** One `DIF_REMOVE` on the ROOT parent tears down the entire tree. No XUSB companion device, no Microsoft upper filter. Creation ~200ms, disposal ~80ms.
+That is the whole setup. Composite personas create like any other profile, because the USB transport they need ships **inside `HIDMaestro.Core.dll`** and installs itself the first time one is created, exactly the way the UMDF2 driver already does. No second package, no separate download, nothing for a user to go find. The bundled component is the host controller driver of [usbip-win2](https://github.com/vadimgrn/usbip-win2) 0.9.8.1, BSD-2-Clause, Microsoft-signed for x64 and ARM64, redistributed unmodified with its notice, and checked against its pinned SHA-256 both when the SDK is built and again before Windows installs it. The x64 files come from the 0.9.8.1 release installer. The ARM64 files come from the same tag's build from the project's signing service, posted in [usbip-win2#13](https://github.com/vadimgrn/usbip-win2/issues/13). A machine that HIDMaestro itself put on an older usbip-win2, 0.9.7.7 through v1.8.1 or 0.9.7.5 in v1.9.0 and v1.9.1, is moved to 0.9.8.1 automatically: the SDK replaces the host controller driver through Windows' own driver update, leaves the root-hub filter alone so no USB device drops, and does it only in a Windows session where nothing has used the controller yet. Until such a session comes, the older transport keeps working. Any other usbip-win2 version was put there by another program and is left as it is. The SDK speaks the request layouts of 0.9.7.x, 0.9.8.0 and 0.9.8.1 and asks the driver which one it has. Set `HIDMAESTRO_KEEP_TRANSPORT=1` to keep the older transport.
 
-#### 2. Non-xinputhid Xbox: Xbox 360 Wired (~135ms post-v1.3.1)
+The SDK installs only the host controller, where none is present: it registers the `ROOT\USB` devnode usbip-win2's own `devnode.exe` would and installs the driver on it through Windows' driver update. It never runs usbip-win2's installer and never installs its root-hub filter, so no USB root hub restarts and no USB device drops, and it adds no Apps entry, program folder, scheduled task, shortcut or runtime. Without the filter the host controller does not pass SET_CONFIGURATION or SET_INTERFACE to the device, and the persona reads its audio streams' state from their traffic instead. A host controller that is present but not answering is restarted, never joined by a second one. The install records what it installed under `HKLM\SOFTWARE\HIDMaestroUsbip`, so a full removal can tell HIDMaestro's install from another program's. Because HIDMaestro's install leaves no usbip-win2 Apps entry, Handheld Companion's and VIIPER's installers take usbip-win2 for missing and run its installer: that adds the root-hub filter, so every USB device blinks once, and a second host controller. HIDMaestro keeps working with two host controllers. A host controller that runs usbip-win2 0.9.7.7 or 0.9.7.5, the releases earlier HIDMaestro versions installed, moves to 0.9.8.1 in a Windows session where nothing has used it, whoever installed it. The install and the move to 0.9.8.1 hold a transport lock of their own and read the machine again under it, so two programs whose first composites arrive together find one host controller. An install waits up to five minutes for a usbip-win2 installer another program started. The SDK's USB/IP server admits an import only from the host controller, whose connections the System process owns, and answers any other with `ST_NA`.
 
-Xbox-VID profiles (`0x045E`) where xinputhid is not in the path. XInput is delivered via a separate SWD-enumerated XUSB companion device running `HMXInput.dll`. WGI dispatch also runs through that companion, admitted by the xinputhid UpperFilter tripwire described in Techniques.
+Every device behavior stays in HIDMaestro's own user-mode code: the SDK runs an in-process USB/IP device server on loopback, including the 1 ms isochronous audio pacing. 0.9.8.1 is the first release with the fix for the attach work item that blocked driver unload in 0.9.8.0 ([usbip-win2#188](https://github.com/vadimgrn/usbip-win2/pull/188)).
 
-```
-ROOT\VID_045E&PID_028E&IG_00\NNNN    ← our UMDF2 driver (main HID device)
-  │                                    UpperFilters += "xinputhid" per-instance
-  │                                    (SDK-written; blocks WGI from building
-  │                                    a second HID-backed Gamepad for this
-  │                                    logical controller)
-  └─ HID\VID_045E&PID_028E&IG_00\... ← HID child (raw PDO, input.inf)
-SWD\HIDMAESTRO\<sid>_NNNN            ← XUSB companion (HMXInput.dll)
-  │                                    SwDeviceCreate, System class, explicit
-  │                                    per-controller ContainerID (shared with
-  │                                    main HID for xinput1_4 dedup).
-  │                                    UpperFilters = "xinputhid" from INF
-  │                                    (admits the companion to WGI's XUSB
-  │                                    dispatch; xinputhid.sys does not
-  │                                    actually attach — wrong device class).
-  │                                    `<sid>` = parent process PID in hex,
-  │                                    bypasses Windows' sticky per-container
-  │                                    fast-path that would empty-shell the
-  │                                    devnode on subsequent same-boot runs.
-  └─ XUSB interface → XInput slot + WGI Gamepad (one entry, live input +
-                                     working put_Vibration on Chromium)
-```
+Measured on a 4-core Intel Atom Z8350: full 4-channel render and live microphone capture through `usbaudio.sys` with no frame starvation, attach in ~316 ms, and idle cost with the transport installed but no device attached indistinguishable from baseline (0.35% vs 0.24% CPU). The composite path runs as scenario S45 of the battery, so a broken persona fails the release gate like anything else.
 
-**Medium stack, fast on both sides post-v1.3.2.** Two device trees to tear down. The XUSB companion runs its own WUDFHost instance hosting `HMXInput.dll`, which needs its own PnP release cycle. v1.3.1's SwD-first ordering brought disposal to ~135 ms (down from ~5,700 ms). v1.3.2's `WaitForXInputSlotClaim` 500 ms cap brought worst-case creation to ~700 ms (typical ~200 ms). Round-trip create + dispose is ~350-850 ms.
+### Valve-recognized Steam devices
 
-#### 3. xinputhid Xbox: Xbox Series X|S Bluetooth (~500ms post-v1.3.1)
+The same machinery answers a different problem. The plain `steam-deck` and `steam-controller` profiles carry Valve's real ids over standard gamepad descriptors, so Steam files them under Generic DirectInput and none of Steam Input's Valve-device treatment applies: no gyro lane, no trackpads, no HD haptics, no Valve button prompts. Recognition follows the device a real unit presents, not the ids alone. Three personas present those devices.
 
-Profiles with `driverMode: "xinputhid"`. These match `xinputhid.inf [GIP_Hid]` by hardware ID (`HID\VID_045E&PID_0B13&IG_00`), which binds Microsoft's `xinputhid.sys` as an upper filter on the HID child. xinputhid provides XInput delivery + 16-button descriptor synthesis natively: no XUSB companion needed, single Device Manager entry.
+`steam-deck-composite` (28DE:1205) reproduces a real unit's whole USB identity from its `lsusb` dump, because that identity is what Steam inspects: `bcdDevice` 3.00, product string `Steam Controller`, a serial string, `wTotalLength` 150 and five interfaces: mouse on 0, keyboard on 1, the vendor-page controller on 2, then an Interface Association Descriptor and the CDC ACM pair on 3 and 4. Input is the 64-byte Neptune frame (`ID_CONTROLLER_DECK_STATE`, header `01 00 09 40`), packed from `SteamDeckStatePacket_t` and cross-checked against a 25,000-frame capture of real hardware.
 
-```
-SWD\HIDMAESTRO_VID_045E_PID_0B13&IG_00\<sid>_NNNN
-  │                                  ← our UMDF2 driver via SwDeviceCreate
-  │                                    (mshidumdf host). Explicit non-sentinel
-  │                                    ContainerID closes the slot-1-skip
-  │                                    bit-2 path in xinput1_4!FUN_18000de2c.
-  │                                    Underscore between VID and PID avoids
-  │                                    the `VID_*&PID_*&IG_*` PnP edge case;
-  │                                    `&IG_00` retained because the HID
-  │                                    child inherits this name and HIDAPI/
-  │                                    SDL3/Chromium substring-match `&IG_`.
-  └─ HID\HIDMAESTRO_VID_045E_PID_0B13&IG_00\...
-        │                            ← HID child (xinputhid.inf, xinputhid
-        │                              upper filter)
-        ├─ xinputhid.sys              ← Microsoft inbox kernel filter
-        ├─ XInput delivery (internal)
-        └─ 16-button HID synthesis
+`steam-controller-composite` (28DE:1102) is the wired 2015 controller. Every descriptor is verbatim from a real unit: the device and configuration blobs, the 63-byte keyboard and 56-byte mouse report descriptors its lizard mode drives, and the 33-byte vendor-page controller descriptor. Three interfaces, because SDL binds the pad only on interface 2. Its frame is `ValveControllerStatePacket_t`; the pad has one stick and no separate stick field, so with the finger-down bit clear `sLeftPadX/Y` is the joystick, which is how the hardware reports it.
+
+`steam-controller-2` (28DE:1302) is the 2026 controller, the one SDL calls Triton. One HID interface addressing everything by report id, with the 372-byte descriptor and the attribute values Steam validates taken from two independent reads of real hardware. The one exception is the firmware build: with Steam installed it reports the build Steam's own updater ships, as a real unit does once it takes that update, so Steam never offers the persona an update it cannot install. Its frame is the 54-byte `TritonMTUFull_t` on report `0x42`.
+
+Through `SubmitState`, motion is the calibrated channel, `AccelGX/GY/GZ` in g and `GyroDpsX/Y/Z` in degrees per second in SDL's sensor frame, written the way each device's SDL driver decodes it, so SDL reads back the vector submitted. Touchpad fingers 0 and 1 are the left and right trackpads. On the Deck and the 2026 controller, `TouchpadFinger0Pressure` and `TouchpadFinger1Pressure`, 0 to 1, reach SDL as the touch pressure, and a contact at pressure 0 reads as a full press. The digital trigger bits set at 90 percent of travel on the Deck and the 2026 controller, the default in Valve's firmware, and at the end of travel on the 2015 controller, where its trigger switch closes.
+
+All three answer the `GET_REPORT` interrogation Steam performs before it will claim a device. Like the hardware, each reports on its own clock whether or not the consumer has anything new to send: every 4 ms for the Deck and the 2026 controller, every 8 ms for the 2015 one. While the consumer is quiet, the persona repeats the consumer's last frame. All three are verified end to end by battery scenarios S51 and S52: S51 pins descriptors, endpoints and feature answers with no device; S52 creates each persona, drives it through `SubmitState` and through raw reports, reads the frames back off the real HID stack, and measures that clock.
+
+### Nintendo Switch 2 Pro Controller with motion
+
+`switch2-pro-controller-composite` (057E:2069) is the Pro Controller 2 as it appears over USB on firmware 1.1.5: HID on interface 0 and a vendor bulk pair on interface 1. Its device and configuration descriptors are a real pad's, byte for byte, from a link-layer capture of a console driving one. The plain `switch2-pro-controller` profile has the HID interface alone and streams report `0x09`, whose motion block no public source decodes. SDL's Switch 2 driver and Steam start the pad with commands on the second interface, then read report `0x05`, which carries the accelerometer and the gyro.
+
+Windows binds WinUSB to interface 1 from the persona's own Microsoft OS 1.0 descriptors, so there is no INF to install and no Zadig step. Behind that interface the persona answers the pad's command protocol: the flash reads that return its serial and calibration, the feature mask, the report selection, the player LEDs. Like the pad, it sends nothing on its interrupt endpoint until a host sends the start command. From then on it sends one report every 4 ms on its own clock, whatever rate the consumer submits at.
+
+`SubmitState` is this persona's whole input path. `AccelGX/GY/GZ` in g and `GyroDpsX/Y/Z` in degrees per second leave as the pad's raw counts in report `0x05`. SDL reads 1 g back as 9.807 m/s² and 100 deg/s as 1.745 rad/s, on the axis submitted and with its sign. Its reports are programs over a 24-byte state block, so a raw submit is that state block, and any other length throws `ArgumentException`. The report that goes out and its counters belong to the device. A host's rumble arrives on `OutputDecoded` as `leftMotor` and `rightMotor`.
+
+```csharp
+using var pad = ctx.CreateController(ctx.GetProfile("switch2-pro-controller-composite")!);
+pad.OutputDecoded += (_, e) => { /* e.Fields["leftMotor"], e.Fields["rightMotor"] */ };
+pad.SubmitState(new HMGamepadState { AccelGY = 1.0f, GyroDpsX = 100f });
 ```
 
-**Both sides fast post-v1.3.2.** xinputhid is a Microsoft inbox kernel filter driver. Pre-v1.3.1 *teardown* went through the full PnP query-remove → class installer → filter unload chain on every Dispose because `DeviceManager.RemoveDevice` removed HID children before the SwD parent (each child's `WaitForDeviceRemoval` then timed out at 2,000ms because the children couldn't unwind while the parent's HSWDEVICE refcount was still held). v1.3.1 closes the SwD parent first via `SwdDeviceFactory.Remove` and blocks on `CM_NOTIFY_ACTION_DEVICEINSTANCEREMOVED`; the children cascade automatically once the kernel releases the parent. Disposal ~500ms.
+Only a host that speaks the command protocol gets input. On Windows that is Steam, and SDL where libusb is present. DirectInput, RawInput, WGI and browsers see a gamepad that never reports, as they do with a real pad, and `switch2-pro-controller` stays the profile for them. A bulk read that a host abandons comes back as success with stale bytes, and so do the reads after it, because usbip-win2 0.9.8.1 completes a canceled transfer without resetting its length. SDL and Steam read only after they send a command, so neither meets it. Headset audio, NFC, pairing, firmware update and the magnetometer are not emulated.
 
-v1.3.2 fixes the *creation* side too. `SetupController` runs three wait budgets after `CreateGamepadCompanion`: `WaitForHidChild` (10 s), `WaitForDeviceStarted` (5 s), and `WaitForXInputSlotClaim` (15 s pre-v1.3.2, **500 ms** post). The slot-claim wait was the dominant cost: distribution is bimodal (xinputhid publishes the slot in <100 ms when healthy, never publishes when xinputhid's allocator is in a stuck state — kernel state issue, prior-session residue), so the prior 15 s budget burned the full duration on every stuck case. PadForge users observed 13-14 s freezes on a single Xbox Series BT create when this hit. The 500 ms cap sits ~5x above the slowest observed healthy claim (giving slow-but-working cases full headroom) and degrades the stuck case to a near-imperceptible pause. Controller stays functional via DI/HIDAPI/Browser/WGI when XInput doesn't pick it up; XInput consumers see the slot appear lazily on their next poll cycle. Creation latency for Xbox Series BT is ~150 ms healthy / ~600 ms worst case post-fix.
+Battery scenario S65 checks the persona on the wire against the capture, through HidUsb and WinUSB, through PadForge's SDL3 fork with libusb, as two pads at once, and through the Steam client, which adds it as a Nintendo Switch Pro Controller and takes its 250 reports a second.
 
-#### SwD-first removal ordering (v1.3.1)
+### Wii U GameCube adapter for Dolphin and Slippi
 
-Two of the three architecture groups (Xbox 360 Wired and Xbox Series BT) own a SwDevice-enumerated parent. SwDevice lifetimes are anchored to the HSWDEVICE handle, not the PnP devnode — children of a SwD parent cannot fully unwind their query-remove cascade until the parent's handle drops its kernel refcount. Pre-v1.3.1, `DeviceManager.RemoveDevice` issued `DIF_REMOVE` on every HID child first (each followed by a 2,000ms `WaitForDeviceRemoval` that timed out because the parent was still holding the lifetime lock), then closed the SwDevice handle. Net cost: ~5,700ms for Xbox 360 Wired, ~11,000ms for Xbox Series BT, scaling worse with more children.
+`gamecube-adapter` (057E:0337) is Nintendo's WUP-028, the four-port adapter Melee players use, on the USB/IP transport. Its device, configuration, string and report descriptors match 57 public dumps of real units, except where those dumps differ among themselves: the control endpoint's packet size and the strings of seven units. Like the adapter, it sends nothing until a host writes 0x13, then reports all four ports in report 0x21 on every 8 ms poll, takes each port's rumble from 0x11, and answers 0x12, 0x14 and SET_PROTOCOL as the adapter does.
 
-v1.3.1 inverts the order: for any `SWD\` parent, close the SwDevice handle FIRST via `SwdDeviceFactory.Remove`, block on `CM_NOTIFY_ACTION_DEVICEINSTANCEREMOVED` for the parent (so callers know the kernel has actually propagated removal, not just that the handle closed), then mop up any HID children that survived the cascade — usually none, because the SwD parent's release fires its children's removal in one cascade.
+Dolphin, Slippi and SDL open the adapter through libusb, which needs WinUSB, and Windows binds its HID driver instead, which is why a real adapter needs Zadig. `BindWinUsb()` binds WinUSB to this one virtual adapter's devnode and installs it nowhere else. A restore never changes the driver of a devnode that is present, so the binding outlasts the controller on that devnode for as long as an adapter sits on it. It is a trade, and it can reach a real adapter. A real WUP-028 can take the devnode's instance (the first adapter of that serial gets the same instance) while the virtual one is gone, its connection down or its controller disposed, and it then opens on WinUSB, as after Zadig, until it is unplugged. Once the devnode is gone, it is marked to install Windows' HID driver at its next arrival by the first of these: a HIDMaestro program disposing a controller, its cleanup (`RemoveAllVirtualControllers`), its reclaim of the controllers of a program that has ended, a binding that moves to the devnode a dropped adapter came back on, or the follow-up that watches the devnode for five minutes after its holder lets go. A program that only runs does none of them unless its own adapter drops and comes back, so an adapter unplugged after the follow-up has ended and plugged in again before any of them happens comes back on WinUSB. A real adapter that arrives while the virtual one is bound gets its own instance and the driver Windows gives it. For a WUP-028, Windows' HID driver fails with Code 10 and libusb hosts need WinUSB, so the lingering state is the one many owners pick with Zadig on purpose. An uninstall-grade cleanup keeps the profile's `hmwinusb_` package in the driver store while a devnode, present or gone, still uses it, notes it in `HKLM\SOFTWARE\HIDMaestroPackagesLeft`, and the first sweep of a later HIDMaestro program removes it once none does.
 
-A second optimization in the same change: when a HIDMAESTRO sweep walks registry entries that exist only as PHANTOM (registry residue from prior sessions, no live devnode), skip the `hmswd.exe` SwDeviceCreate-reconnect roundtrip entirely. Saves ~50-75ms per stale entry and prevents creep across same-process recreation cycles.
+```csharp
+using var adapter = ctx.CreateController(ctx.GetProfile("gamecube-adapter")!);
+adapter.BindWinUsb();
+adapter.Ports[0].SubmitState(new HMGamepadState { Buttons = HMButton.A });   // port 1
+adapter.Ports[2].Connect("wireless");                                          // a WaveBird on port 3
+adapter.Ports[1].OutputChanged += (_, e) => { /* "rumble": 0 stop, 1 run, 2 stop hard */ };
+```
 
-#### Why this matters for consumers
+Each port has its own connection (`wired`, `wireless`, `wirelessNotCommunicating` for a WaveBird that is not communicating, or `empty`), its own input and its own rumble, and keeps its number when a controller leaves and returns. `Ports.Flags["rumblePower"]` is the second USB cable. L and R report their analog travel on the triggers and their clicks as `HMButton.LeftTriggerClick` and `RightTriggerClick`. The ports, the status values, the commands and their replies are the profile's JSON, which the SDK compiles at create.
 
-If your application needs fast profile switching (e.g. remapping a physical controller to a different virtual identity on the fly), the profile architecture group determines the user-perceived latency:
+Dolphin's and Slippi's own adapter code, compiled unmodified, reads all four ports, and so does SDL 3.4.18 built with libusb. The official SDL3 build for Windows has no libusb and lists no adapter, real or virtual. A port submit reaches Dolphin in 4.8 ms at p50 on the adapter's 8 ms poll, and in 1.5 ms when the host polls every millisecond, as Melee players overclock it, at 832 reports a second against a real adapter's 833. Battery scenarios S79 to S83 check the bytes, the protocol, the binding, Dolphin, Slippi and SDL.
 
-- **Switching between plain HID profiles** (DualSense ↔ DualShock 4, or any non-Xbox pair): ~280 ms round trip (~80 ms dispose + ~200 ms create). Essentially instant.
-- **Switching to/from Xbox 360 Wired**: ~135 ms dispose (down from ~5,700 ms pre-v1.3.1) + ~200-700 ms create (slot-claim wait capped at 500 ms post-v1.3.2). Round-trip ~350-850 ms vs ~6.4 s pre-v1.3.1.
-- **Switching to/from Xbox Series BT**: ~500 ms dispose (down from ~11 s pre-v1.3.1) + ~150-600 ms create (slot-claim wait capped at 500 ms post-v1.3.2). Round-trip ~650-1,100 ms vs ~11+ s pre-v1.3.1. PadForge user-reported: virtually instantaneous create and swap.
+## Virtual VR controllers
 
-## Why UMDF2 Is Enough
+A VR controller is not an OS device: games ask the VR runtime "where is the left hand, and what is its trigger doing." So this subsystem is a native OpenVR driver that SteamVR's own vrserver loads, embedded in `HIDMaestro.Core.dll` and registered with one call. One driver covers native OpenVR games and OpenXR games running on SteamVR, which is the default PCVR configuration.
 
-A common assumption is that virtual game controllers require kernel-mode drivers. Here's why UMDF2 works:
+```csharp
+HMVR.EnsureDriverRegistered();          // extracts once per content hash, registers for the calling user
+using var vr = new HMVRController();    // both hands appear in SteamVR
+vr.SubmitState(in state);               // buttons, trigger/grip, stick, optional full pose - per frame
+vr.HapticReceived += (_, e) => ...;     // every haptic pulse a VR app plays, with hand attribution
+var head = vr.GetHmdPose();             // the real headset pose, for head-as-input mapping
+```
 
-- **HID class driver is already in the kernel.** Windows ships `mshidumdf.sys` which acts as a kernel-mode HID minidriver proxy. Our UMDF2 DLL runs in user mode but the HID class stack sees a real HID device.
-- **XInput discovery uses device interfaces, not bus type.** `xinput1_4.dll` finds controllers through the XUSB device interface GUID. A UMDF2 driver can register this interface from user mode.
-- **GameInput reads HID reports, not driver internals.** WGI/GameInput reads from the HID preparsed data and report descriptors; it does not care whether the underlying driver is kernel or user mode.
-- **SDL3 and HIDAPI check device paths and attributes.** Bus type, VID/PID, and device path strings are all settable from user mode via SetupDI and CM APIs.
+The hands hold real SteamVR hand roles, serve SteamVR Input through a full input profile, and serve legacy `GetControllerState` readers through a shipped legacy binding. Controllers exist only while a consumer is live, so an idle machine shows no phantom devices. Registration writes the user's OpenVR path registry itself and starts no process, so a driver registered while SteamVR runs loads at SteamVR's next start, and `HMVR.UnregisterDriver` throws `InvalidOperationException` when that registry cannot be updated. SteamVR is the one dependency, and it installs Steam-client-free and account-free via Valve's own `steamcmd +login anonymous +app_update 250820`. The whole loop is machine-verified on headless rigs with no headset (battery scenario S50): enumeration, roles, input, haptics, and a 90 Hz legacy state stream read back through Valve's own client API. [Full docs](https://hidmaestro.org/docs/sdk/vr-controllers/).
 
-The only things UMDF2 *cannot* do: create PDOs (Physical Device Objects) as children of a bus, or intercept internal kernel IOCTLs. HIDMaestro works around this by using a companion device for XUSB and root-enumerated device nodes for the HID stack.
+---
+
+## How it compares
+
+<details>
+<summary><b>Tool by tool</b></summary>
+
+| | HIDMaestro | VIIPER | ViGEmBus | vJoy | WinUHid |
+|--|--|--|--|--|--|
+| Kernel driver required | **No** (UMDF2 user mode) | Yes (USBIP) | Yes | Yes | No (UMDF2 on VHF) |
+| Installs without test-signing mode | **Yes** | Yes | Yes | Yes | No (ships test-signed) |
+| EV certificate for new builds | **No** | No (uses signed usbip-win2) | Yes ($300+/yr) | Yes | No (OV cert for x64) |
+| Network play | **App layer via consumers (PadForge Remote Link), zero local penalty** | In the driver: +1-5 ms wired, +10-50 ms Wi-Fi | No | No | No |
+| Identity per controller | **Exact, 337 profiles** | 6 fixed device types | 2 fixed types | Fixed "vJoy Device" | 4 presets, or raw descriptor |
+| Bus type fidelity | **Per-profile, incl. Bluetooth** | USB only (USBIP) | USB only | USB only | USB only |
+| Add a new device | **JSON file, or capture one you own** | Write Go (a few hundred lines/device) | N/A | N/A | Write C, or raw descriptor |
+| Local single-press latency | **~35 µs measured** | 168 µs published (localhost) | N/A | N/A | Not published |
+| Input update rate | Event-driven, no fixed cap | 1000 Hz (1 ms batching) | N/A | N/A | Event-driven |
+| License | MIT | GPL-3.0 (clients MIT) | N/A | N/A | MIT |
+| Status | **Active** | Active | Retired | Stale | Active |
+
+</details>
+
+VIIPER describes itself as running entirely in userspace. On Windows that holds only for its device code: the USB/IP transport is a third-party kernel-mode driver, and VIIPER makes you go install it. HIDMaestro's own driver is user-mode UMDF2, and it rides the host that already ships with Windows, so the "no kernel driver" row above is literal for everything the standard profiles do. The composite USB personas are the one deliberate exception, and they use the same signed usbip-win2 transport VIIPER does, because a Windows audio endpoint requires a driver-backed USB device and no user-mode API can create one. The difference is what the user has to do about it: HIDMaestro ships that transport inside its own DLL and deploys it on demand, so a composite persona is a profile you pick, not a prerequisite you chase. Use any other profile and no kernel-mode component is ever installed.
+
+HIDMaestro is Windows optimized and focused on game controllers, keyboards, mice and other HID game devices. Within that scope it gives you exact hardware identity with no kernel driver, no network layer, and no per-device code. That combination is what HIDMaestro is built for, and nothing else on this list delivers it.
+
+### What it replaces
+
+- **VIIPER**: needs a kernel-mode USB/IP driver on Windows despite the userspace billing, makes the user install it, and presents every controller as USB so Bluetooth devices report the wrong bus type. Its headline latency is localhost-only and already 4 to 5 times higher than HIDMaestro's even there. The network it is named for adds another 1 to 50 ms on top.
+- **vJoy**: kernel driver, no longer actively maintained, shows up as "vJoy Device" instead of real hardware.
+- **ViGEmBus**: kernel driver, retired, new builds need an EV code-signing certificate.
+- **DsHidMini**: user-mode, but translates a physically connected DualShock 3 rather than arbitrary input.
+
+---
 
 ## Known Limitations
 
-- **Output passthrough is delivered but not routed to hardware.** The driver accepts rumble/haptics/FFB SET_STATE IOCTLs and the SDK raises `HMController.OutputReceived` events to the consumer application. Routing those events to a physical controller is the consumer's responsibility (e.g. PadForge handles this).
-- **HID PID 1.0 force feedback is consumer-driven.** The driver answers `HidD_GetFeature` for the canonical PID Report IDs (Block Load 0x12, Pool 0x13, State 0x14) directly from a per-controller shared state section. The consumer fills it via `HMController.PublishPidPool` / `PublishPidBlockLoad` / `PublishPidState`. Until `PublishPidPool` is called at least once, the driver returns `STATUS_NO_SUCH_DEVICE` for the Pool Report so DirectInput cleanly concludes "device exists but no FFB" — matching vJoy's "FFB not enabled" convention. No IPC round trip on the GetFeature path.
-- **Auth-chip controllers.** Some platforms (PS4/PS5 online, Nintendo Switch Online) require cryptographic authentication from the controller hardware. HIDMaestro cannot replicate authentication chips.
-- **Vendor-specific feature reports.** Some controllers use proprietary feature reports for calibration, LED control, or firmware updates. HIDMaestro profiles currently cover standard input/output; vendor extensions require per-controller work.
-- **XUSB companion creates a second device node** for non-xinputhid Xbox profiles (e.g. Xbox 360 Wired). Real Xbox controllers have XUSB and HID on the same PDO. HIDMaestro uses a separate companion device because mshidumdf suppresses XUSB IOCTLs. This is invisible to applications but visible in Device Manager. Xbox Series BT profiles use xinputhid natively and do not need a companion.
-- **HID class APIs are event-driven, not state-driven.** DirectInput, HIDAPI, WGI, and RawInput only see state changes that occur after a consumer opens the device. Buttons held *before* a consumer opens are invisible until released and re-pressed. This is standard Windows HID class behavior, not a HIDMaestro limitation. Tested and confirmed: a real Microsoft Xbox Series X|S BT controller exhibits byte-identical behavior (holding A before opening joy.cpl shows A as not pressed). XInput is the exception (always-on, polled by the OS).
-## How to Reproduce the Validation
-
-Each validation result above was produced with these tools:
-
-| Check | Tool | Command / Method |
-|-------|------|-----------------|
-| DirectInput axes/buttons | Python `ctypes` + DirectInput8 + `winmm.joyGetDevCapsW` | `scripts/verify.py` |
-| XInput slots/triggers | Python `ctypes` + `xinput1_4.XInputGetState` | `scripts/verify.py` |
-| SDL3/HIDAPI identity | Python `hid.enumerate()` | `scripts/verify.py` |
-| Browser Gamepad | Headless Edge/Chrome → `navigator.getGamepads()` | `scripts/verify.py` (via `scripts/browser_check/`) |
-| GameInput / WGI | `winrt.windows.gaming.input.RawGameController` | `scripts/verify.py` |
-| HID enumeration order | Python `hid.enumerate()` filtered by `HM-CTL-` serial | `scripts/verify.py` |
-| Cross-API mark-mode ordering | C++ multi-backend harness (MPT 1:1) | `build/multipad_check.exe --trigger` |
-| Real vs virtual HID stream diff | C++ HID capture tool | `build/hid_capture.exe <vid> <pid>` |
-| Device tree | `Get-PnpDevice` (PowerShell) | Manual |
-| joy.cpl | Windows Game Controllers control panel | Manual |
-
-To reproduce: run `HIDMaestroTest.exe emulate <profile-id>`, then run `python scripts/verify.py` in a separate terminal. For multi-controller validation: `HIDMaestroTest.exe emulate <id1> <id2> ...` then `python scripts/verify.py --controllers N`.
-
-## Glossary
-
-| Term | Meaning |
-|------|---------|
-| **XUSB** | Xbox USB protocol. The device interface GUID (`{EC87F1E3-...}`) that `xinput1_4.dll` discovers to find Xbox controllers, and the one WGI walks for XUSB-backed Gamepads. |
-| **WinExInput** | Windows Extended Input. A device interface GUID (`{6C53D5FD-...}`) registered on HID parents by HIDMaestro for historical reasons. Ghidra decomp of `Windows.Gaming.Input.dll` (Win11 26200) found zero references to this GUID; it is not actually WGI's `GamepadAdded` source. WGI admission comes from the HIDClass pass-list (plain HID profiles) or the xinputhid UpperFilter tripwire (Xbox XUSB-companion profiles). |
-| **xinputhid UpperFilter tripwire** | Registry string `"xinputhid"` written to a device's `DEVPKEY_Device_UpperFilters` (via INF HKR AddReg or SetupAPI) to satisfy WGI's `IsDeviceOrAncestorFilteredBy` wstring compare. Does not load `xinputhid.sys` — the filter only attaches to HID-class devices. Admits a System-class device (the XUSB companion at `SWD\HIDMAESTRO`) to WGI's XUSB dispatch path. See Techniques. |
-| **XUSB Companion** | A separate UMDF2 device (`HMXInput.dll`) that handles XUSB IOCTLs for XInput. Lives at `SWD\HIDMAESTRO\<sid>_NNNN`. Needed because `mshidumdf` suppresses XUSB on HID devices. |
-| **SWD enumerator** | "Software-device" PnP enumerator. Devices created via `SwDeviceCreate` (cfgmgr32) appear under `HKLM\SYSTEM\CurrentControlSet\Enum\SWD\<enumerator>\<instance>`. The SwDevice API lets us specify an explicit non-sentinel `pContainerId`, which is the linchpin of the slot-1-skip fix. |
-| **Session-id prefix** | Per-process unique token (the launching process's PID in hex) prepended to every SwD instance-id suffix. Bypasses Windows PnP's sticky per-`(enumerator + suffix + ContainerId)` reuse-fast-path that would otherwise leave subsequent same-boot devnodes as empty registry shells with no driver bound. |
-| **ContainerID slot-1 skip** | Pre-fix bug in `xinput1_4!FUN_18000de2c`: a null-sentinel ContainerID `{00000000-...-FFFF-FFFFFFFFFFFF}` triggered a code path that set bit 2 on the device struct, made the fallback slot allocator skip iter 0, and surfaced an empty slot 1 to consumers. The SWD migration's explicit `pContainerId` closes the path. |
-| **GameInput mapping** | Registry entries at `HKLM\...\GameInput\Devices\{VID}{PID}...` that tell WGI how to map HID axes/buttons to the Gamepad interface. |
-| **&IG_** | "Interface Group" marker in Xbox device paths. Chrome and HIDAPI skip devices with this in the path; SDL3 falls through to its RawInput backend. |
-| **Vx/Vy** | HID velocity usages (0x40/0x41). Invisible to DirectInput's axis mapper but enumerated by GameInput; used to carry separate trigger values. |
-| **mshidumdf** | Microsoft's kernel-mode HID minidriver proxy that hosts UMDF2 HID drivers. |
+- **Windows optimized.** HIDMaestro is built on UMDF2, `mshidumdf`, and the Windows HID/XInput/WGI stack. There is no Linux or macOS build.
+- **Output is delivered, not routed to hardware.** The driver accepts rumble/haptic/FFB writes and raises `OutputReceived` to the consumer. Sending those to a physical controller is the consumer's job (PadForge does this).
+- **Auth-chip controllers.** PS4/PS5 online and Nintendo Switch Online require cryptographic authentication from real controller hardware. HIDMaestro cannot replicate authentication chips.
+- **Vendor-specific feature reports.** LED control, calibration, and firmware-update reports vary per device. A profile answers the ones its answer table holds, and a report no table holds goes unanswered.
+- **One interface per keyboard or mouse.** A keyboard or mouse profile carries the descriptor of the real device's keyboard or mouse interface. Its other interfaces, including the ones vendor configuration tools use, are not emulated.
+- **Anti-cheat.** Virtual devices are detectable by kernel-level anti-cheat. HIDMaestro does not hide that it is virtual.
+- **Programs built on 1.x.** A program built on HIDMaestro 1.x removes every HIDMaestro device on the machine when it calls `InstallDriver` or first creates a controller, another program's included, and puts its own driver back. Programs on 2.0.0 leave each other's devices alone. Move every program on the machine to 2.0.0.
 
 ## Security and Scope
 
-HIDMaestro replicates the public-facing identity and input/output behavior of game controllers. It does **not**:
-
-- Replicate cryptographic authentication (PS4/PS5 auth chips, Nintendo Switch pairing)
-- Implement vendor-private protocols unless explicitly added to a profile
-- Bypass anti-cheat systems (virtual devices are detectable by kernel-level anti-cheat)
-- Modify or intercept data from physical controllers
+HIDMaestro replicates the public-facing identity and input/output behavior of game controllers. It does **not** replicate cryptographic authentication, implement vendor-private protocols unless a profile adds them, bypass anti-cheat, or modify data from physical controllers.
 
 ## Credits
 
-- **[DsHidMini](https://github.com/nefarius/DsHidMini)** by [Nefarius Software Solutions](https://nefarius.at/). HIDMaestro builds on the UMDF2 + xinputhid approach that Nefarius used in DsHidMini. DsHidMini demonstrated that a user-mode driver framework can replace kernel-mode drivers for game controller emulation on Windows. The same architecture (`mshidumdf` as the kernel-side HID proxy, `WUDFRd` as the reflector, xinputhid as the XInput bridge) is the foundation HIDMaestro's virtual controller stack is built on.
-- **[HIDAPI](https://github.com/libusb/hidapi)**: bus type detection behavior informed the BTHLEDEVICE spoofing technique.
-- **[SDL3](https://github.com/libsdl-org/SDL)**: multi-backend fallback behavior informed the &IG_ enumerator trick. SDL3 is not a dependency; HIDMaestro is validated against it.
+- **[DsHidMini](https://github.com/nefarius/DsHidMini)** by [Nefarius Software Solutions](https://nefarius.at/). HIDMaestro builds on the UMDF2 + xinputhid approach Nefarius pioneered in DsHidMini, which demonstrated that a user-mode driver framework can replace kernel-mode drivers for controller emulation on Windows. The `mshidumdf` HID proxy, `WUDFRd` reflector, and xinputhid XInput bridge are the foundation of HIDMaestro's stack. The `dualshock-3-full` persona reproduces the report descriptor DsHidMini presents in its SXS mode and derives that mode's reports the way DsHidMini does, under its BSD 3-Clause license ([notice](sdk/HIDMaestro.Core/THIRD-PARTY-NOTICES.txt)).
+- **[HIDAPI](https://github.com/libusb/hidapi)**: bus-type detection behavior informed the BTHLEDEVICE spoofing technique.
+- **[SDL3](https://github.com/libsdl-org/SDL)**: multi-backend fallback behavior informed the &IG_ enumerator trick. SDL3 is not a dependency. HIDMaestro is validated against it.
 
 ## Donations
 
-Knowing HIDMaestro is useful is reward enough. If you truly insist on donating, please donate to your charity of choice and bless humanity. If you can't think of one, consider [Humanitarian Services of The Church of Jesus Christ of Latter-day Saints](https://philanthropies.churchofjesuschrist.org/humanitarian-services). Also consider donating directly to the upstream projects listed above; they made all of this possible.
+**There is no tip jar.** Knowing HIDMaestro is useful is reward enough. If you insist on giving something, give it to a charity instead and bless humanity. Short of one you already trust, [Humanitarian Services of The Church of Jesus Christ of Latter-day Saints](https://philanthropies.churchofjesuschrist.org/humanitarian-services) puts it to work directly, and [give.org](https://give.org) grades charities against twenty standards if you would rather choose your own. The upstream projects listed above have earned it as much as anyone. They made all of this possible.
+
+Anonymously, preferably. Not at all is fine too, and nothing here changes either way.
 
 **My promise:** HIDMaestro will never become paid, freemium, or Patreon early-access paywalled. Free means free.
 

@@ -27,6 +27,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        SdkVersionText.Text = $"HIDMaestro SDK v{typeof(HMContext).Assembly.GetName().Version?.ToString(3)}";
+        AppVersionText.Text = $"GlassPad v{typeof(MainWindow).Assembly.GetName().Version?.ToString(3)}";
         SizeToScreen();
     }
 
@@ -112,7 +114,11 @@ public partial class MainWindow : Window
 
         // HIDMaestro 초기화 (background thread)
         _pad = new PadService();
-        _pad.Init(_ => { }); // 상태바 없으므로 메시지 무시
+        _pad.Init(status =>
+        {
+            if (!Dispatcher.HasShutdownStarted)
+                Dispatcher.BeginInvoke(new Action(() => ControllerStatusText.Text = status));
+        });
     }
 
     // ── FAB 메뉴 ─────────────────────────────────────────────────────
@@ -174,6 +180,11 @@ public partial class MainWindow : Window
     private void InfoClose_Click(object sender, RoutedEventArgs e)
     {
         InfoPanel.Visibility = Visibility.Collapsed;
+    }
+
+    private void Licenses_Click(object sender, RoutedEventArgs e)
+    {
+        new LicenseWindow { Owner = this }.ShowDialog();
     }
 
     // ── 편집 패널 ────────────────────────────────────────────────────

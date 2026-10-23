@@ -1,0 +1,9 @@
+HIDMaestro SDK v2.0.3
+Release: https://github.com/hifihedgehog/HIDMaestro/releases/tag/v2.0.3
+Archive: HIDMaestro-v2.0.3.zip (official x64 release)
+Archive SHA-256: b1578a391971f4296026b692844292dfc55ddbddbeabc2bcada8cc36c6e34cd2
+HIDMaestro.Core.dll SHA-256: 3df800c35de6724508f02a56bc4243a0b4da6d13355bde20881dccb56c932218
+
+The DLL, LICENSE, README.md and THIRD-PARTY-NOTICES.txt are copied from
+this archive. The SDK embeds its driver payloads; no other SDK tools
+are required by GlassPad. See the application README for migration notes.

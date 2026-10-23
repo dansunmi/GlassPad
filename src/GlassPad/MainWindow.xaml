@@ -272,18 +272,25 @@
                            FontFamily="Consolas"
                            HorizontalAlignment="Center"
                            Margin="0,0,0,4"/>
-                <TextBlock Text="HIDMaestro SDK v1.3.15"
+                <TextBlock x:Name="SdkVersionText"
                            Foreground="#88A0B8C8"
                            FontSize="10"
                            FontFamily="Consolas"
                            HorizontalAlignment="Center"
                            Margin="0,0,0,4"/>
-                <TextBlock Text="GlassPad v1.0.0"
+                <TextBlock x:Name="AppVersionText"
                            Foreground="#88A0B8C8"
                            FontSize="10"
                            FontFamily="Consolas"
                            HorizontalAlignment="Center"
-                           Margin="0,0,0,22"/>
+                           Margin="0,0,0,12"/>
+                <TextBlock x:Name="ControllerStatusText" Text="Connecting controller..."
+                           Foreground="#AACCE0FF" FontSize="12" MaxWidth="360"
+                           TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,12"/>
+                <Button Style="{StaticResource PillBtn}"
+                        Content="Open-source licenses" Width="200" Height="34"
+                        Background="#CC404055" HorizontalAlignment="Center"
+                        Margin="0,0,0,12" Click="Licenses_Click"/>
                 <Button Style="{StaticResource PillBtn}"
                         Content="Close"
                         Width="120" Height="34"
